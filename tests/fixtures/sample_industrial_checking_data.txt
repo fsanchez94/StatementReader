@@ -1,0 +1,18 @@
+BANCO INDUSTRIAL DE GUATEMALA
+ESTADO DE CUENTA - CUENTA DE DEPÓSITOS MONETARIOS
+PERÍODO: 01/01/2024 AL 31/01/2024
+CUENTA: 1234567890
+CLIENTE: JUAN PEREZ
+
+FECHA       REFERENCIA   DESCRIPCIÓN                           DÉBITO      CRÉDITO     SALDO
+01/01/2024  000001      SALDO ANTERIOR                                               10,000.00
+05/01/2024  123456      DEPOSITO EFECTIVO ATM                             2,000.00   12,000.00
+10/01/2024  123457      PAGO TARJETA DE CREDITO              1,500.00                10,500.00
+15/01/2024  123458      TRANSFERENCIA RECIBIDA                            5,000.00   15,500.00
+20/01/2024  123459      PAGO SERVICIOS PUBLICOS                800.00                14,700.00
+25/01/2024  123460      COMISION MANTENIMIENTO                  25.00                14,675.00
+30/01/2024  123461      DEPOSITO EFECTIVO                                 1,000.00   15,675.00
+
+SUBTOTAL CREDITOS                                                         8,000.00
+SUBTOTAL DEBITOS                                                          2,325.00
+SALDO FINAL                                                              15,675.00

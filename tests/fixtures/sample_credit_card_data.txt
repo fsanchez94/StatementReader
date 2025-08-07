@@ -1,0 +1,18 @@
+BANCO INDUSTRIAL DE GUATEMALA
+ESTADO DE CUENTA - TARJETA DE CRÉDITO
+PERÍODO: 01/01/2024 AL 31/01/2024
+TARJETA: ****1234
+TITULAR: JUAN PEREZ
+
+FECHA       REFERENCIA   COMERCIO/DESCRIPCIÓN                 CARGO       ABONO      SALDO
+01/01/2024               SALDO ANTERIOR                                              -500.00
+03/01/2024  TXN001       SUPERMERCADO LA TORRE                150.00                -650.00
+07/01/2024  TXN002       GASOLINERA PUMA                       75.00                -725.00
+12/01/2024  PAY001       PAGO RECIBIDO                                    800.00     75.00
+18/01/2024  TXN003       RESTAURANTE SAZON                     85.00                -10.00
+22/01/2024  TXN004       FARMACIA SAN NICOLAS                  45.50                -55.50
+28/01/2024  TXN005       AMAZON PURCHASE                      120.00               -175.50
+
+TOTAL CARGOS                                                   475.50
+TOTAL ABONOS                                                   800.00
+SALDO ACTUAL                                                  -175.50

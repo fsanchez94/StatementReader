@@ -1,0 +1,7 @@
+{
+    "paths": {
+        "husband_folder": "D:\\OneDrive\\Desktop\\CursorAI Projects\\pdf_bank_parser\\data\\input\\husband",
+        "spouse_folder": "D:\\OneDrive\\Desktop\\CursorAI Projects\\pdf_bank_parser\\data\\input\\spouse",
+        "output_folder": "D:\\OneDrive\\Desktop\\CursorAI Projects\\pdf_bank_parser\\data\\output\\csv"
+    }
+}
