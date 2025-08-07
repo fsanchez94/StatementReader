@@ -1,10 +1,10 @@
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, date
-from parsers.banco_industrial_checking_parser import BancoIndustrialCheckingParser
-from parsers.banco_industrial_credit_parser import BancoIndustrialCreditParser
-from parsers.bam_credit_parser import BAMCreditParser
-from parsers.gyt_credit_parser import GyTCreditParser
+from src.parsers.banco_industrial_checking_parser import BancoIndustrialCheckingParser
+from src.parsers.banco_industrial_credit_parser import BancoIndustrialCreditParser
+from src.parsers.bam_credit_parser import BAMCreditParser
+from src.parsers.gyt_credit_parser import GyTCreditParser
 
 class TestBancoIndustrialCheckingParser:
     def setup_method(self):
@@ -141,7 +141,7 @@ class TestBancoIndustrialCheckingParser:
         assert len(transactions) == 1
         assert transactions[0]['Description'] == 'DEPOSITO EFECTIVO'
 
-    @patch('parsers.banco_industrial_checking_parser.pdfplumber.open')
+    @patch('src.parsers.banco_industrial_checking_parser.pdfplumber.open')
     def test_extract_data_integration(self, mock_pdfplumber):
         """Test the main extract_data method"""
         # Setup mock PDF
@@ -150,7 +150,7 @@ class TestBancoIndustrialCheckingParser:
 15/01/2024 123456 DEPOSITO EFECTIVO 500.00 2,000.00
 16/01/2024 123457 PAGO SERVICIOS 200.00 1,800.00"""
         
-        mock_pdf = Mock()
+        mock_pdf = MagicMock()
         mock_pdf.pages = [mock_page]
         mock_pdf.__enter__.return_value = mock_pdf
         mock_pdf.__exit__.return_value = None
@@ -165,7 +165,7 @@ class TestBancoIndustrialCheckingParser:
         assert transactions[0]['Description'] == 'DEPOSITO EFECTIVO'
         assert transactions[1]['Description'] == 'PAGO SERVICIOS'
 
-    @patch('parsers.banco_industrial_checking_parser.pdfplumber.open')
+    @patch('src.parsers.banco_industrial_checking_parser.pdfplumber.open')
     def test_extract_data_multiple_pages(self, mock_pdfplumber):
         """Test extract_data with multiple PDF pages"""
         # Setup mock PDF with multiple pages
@@ -175,7 +175,7 @@ class TestBancoIndustrialCheckingParser:
         mock_page2 = Mock()
         mock_page2.extract_text.return_value = "16/01/2024 123457 PAGO SERVICIOS 200.00 1,800.00"
         
-        mock_pdf = Mock()
+        mock_pdf = MagicMock()
         mock_pdf.pages = [mock_page1, mock_page2]
         mock_pdf.__enter__.return_value = mock_pdf
         mock_pdf.__exit__.return_value = None
@@ -199,7 +199,7 @@ class TestParserEdgeCases:
             mock_page = Mock()
             mock_page.extract_text.return_value = ""
             
-            mock_pdf = Mock()
+            mock_pdf = MagicMock()
             mock_pdf.pages = [mock_page]
             mock_pdf.__enter__.return_value = mock_pdf
             mock_pdf.__exit__.return_value = None
@@ -216,7 +216,7 @@ class TestParserEdgeCases:
         parser = BancoIndustrialCheckingParser("test.pdf")
         
         with patch('parsers.banco_industrial_checking_parser.pdfplumber.open') as mock_pdfplumber:
-            mock_pdf = Mock()
+            mock_pdf = MagicMock()
             mock_pdf.pages = []
             mock_pdf.__enter__.return_value = mock_pdf
             mock_pdf.__exit__.return_value = None

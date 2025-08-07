@@ -3,15 +3,15 @@ import pandas as pd
 import os
 import json
 import tempfile
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, MagicMock
 from pathlib import Path
 
 # Import the main processing modules
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent / "src"))
 
-from parsers.parser_factory import ParserFactory
-from utils.pdf_processor import PDFProcessor
+from src.parsers.parser_factory import ParserFactory
+from src.utils.pdf_processor import PDFProcessor
 
 class TestEndToEndProcessing:
     """Integration tests for complete PDF processing pipeline"""
@@ -30,7 +30,7 @@ class TestEndToEndProcessing:
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch('utils.pdf_processor.pdfplumber.open')
+    @patch('src.utils.pdf_processor.pdfplumber.open')
     def test_pdf_processor_integration(self, mock_pdfplumber):
         """Test PDFProcessor integration with real-like data"""
         # Setup mock PDF with realistic bank statement content
@@ -43,7 +43,7 @@ class TestEndToEndProcessing:
         16/01/2024 123457 PAGO SERVICIOS 200.00 1,800.00
         """
         
-        mock_pdf = Mock()
+        mock_pdf = MagicMock()
         mock_pdf.pages = [mock_page]
         mock_pdf.__enter__.return_value = mock_pdf
         mock_pdf.__exit__.return_value = None
@@ -57,7 +57,7 @@ class TestEndToEndProcessing:
         assert "PAGO SERVICIOS" in result
         assert len(result) > 50  # Should pass validation
 
-    @patch('parsers.banco_industrial_checking_parser.pdfplumber.open')
+    @patch('src.parsers.banco_industrial_checking_parser.pdfplumber.open')
     def test_parser_factory_to_csv_integration(self, mock_pdfplumber):
         """Test complete flow from ParserFactory to CSV output"""
         # Setup mock PDF
@@ -67,7 +67,7 @@ class TestEndToEndProcessing:
         16/01/2024 123457 PAGO SERVICIOS 200.00 1,800.00
         """
         
-        mock_pdf = Mock()
+        mock_pdf = MagicMock()
         mock_pdf.pages = [mock_page]
         mock_pdf.__enter__.return_value = mock_pdf
         mock_pdf.__exit__.return_value = None
@@ -97,13 +97,13 @@ class TestEndToEndProcessing:
         assert 'DEPOSITO EFECTIVO' in df['Description'].values
         assert 'PAGO SERVICIOS' in df['Description'].values
 
-    @patch('parsers.banco_industrial_checking_parser.pdfplumber.open')
+    @patch('src.parsers.banco_industrial_checking_parser.pdfplumber.open')
     def test_spouse_account_integration(self, mock_pdfplumber):
         """Test spouse account processing integration"""
         mock_page = Mock()
         mock_page.extract_text.return_value = "15/01/2024 123456 DEPOSITO EFECTIVO 500.00 2,000.00"
         
-        mock_pdf = Mock()
+        mock_pdf = MagicMock()
         mock_pdf.pages = [mock_page]
         mock_pdf.__enter__.return_value = mock_pdf
         mock_pdf.__exit__.return_value = None
@@ -138,7 +138,7 @@ class TestEndToEndProcessing:
             assert parser.pdf_path == self.sample_pdf_path
             assert hasattr(parser, 'extract_data')
 
-    @patch('utils.pdf_processor.pdfplumber.open')
+    @patch('src.utils.pdf_processor.pdfplumber.open')
     def test_ocr_fallback_integration(self, mock_pdfplumber):
         """Test OCR fallback integration when text extraction fails"""
         # Setup PDF that returns insufficient text
@@ -146,7 +146,7 @@ class TestEndToEndProcessing:
         mock_page.extract_text.return_value = "short"  # Less than 50 chars
         mock_page.to_image.return_value = Mock()
         
-        mock_pdf = Mock()
+        mock_pdf = MagicMock()
         mock_pdf.pages = [mock_page]
         mock_pdf.__enter__.return_value = mock_pdf
         mock_pdf.__exit__.return_value = None
@@ -154,8 +154,8 @@ class TestEndToEndProcessing:
         mock_pdfplumber.return_value = mock_pdf
         
         # Mock OCR components
-        with patch('utils.pdf_processor.pytesseract.image_to_string') as mock_ocr:
-            with patch('utils.pdf_processor.Image.open'):
+        with patch('src.utils.pdf_processor.pytesseract.image_to_string') as mock_ocr:
+            with patch('src.utils.pdf_processor.Image.open'):
                 mock_ocr.return_value = "This is a long OCR result that should pass validation and contains bank data"
                 
                 processor = PDFProcessor()
@@ -175,13 +175,13 @@ class TestEndToEndProcessing:
         with pytest.raises(ValueError):
             ParserFactory.get_parser("invalid_bank", "checking", self.sample_pdf_path)
 
-    @patch('parsers.banco_industrial_checking_parser.pdfplumber.open')
+    @patch('src.parsers.banco_industrial_checking_parser.pdfplumber.open')
     def test_csv_format_consistency(self, mock_pdfplumber):
         """Test that CSV output format is consistent across different parsers"""
         mock_page = Mock()
         mock_page.extract_text.return_value = "15/01/2024 123456 TEST TRANSACTION 100.00 1,000.00"
         
-        mock_pdf = Mock()
+        mock_pdf = MagicMock()
         mock_pdf.pages = [mock_page]
         mock_pdf.__enter__.return_value = mock_pdf
         mock_pdf.__exit__.return_value = None
@@ -210,7 +210,7 @@ class TestEndToEndProcessing:
 
     def test_date_conversion_consistency(self):
         """Test that date conversion is consistent across the system"""
-        from parsers.base_parser import BaseParser
+        from src.parsers.base_parser import BaseParser
         from datetime import date
         
         # Create mock parser to test date conversion
@@ -240,7 +240,7 @@ class TestEndToEndProcessing:
         
         # Import and test the get_pdf_files function from mainbundlev2
         sys.path.append(str(Path(__file__).parent.parent.parent / "src"))
-        from mainbundlev2 import get_pdf_files
+        from src.mainbundlev2 import get_pdf_files
         
         pdf_files = get_pdf_files("/mock/folder")
         
