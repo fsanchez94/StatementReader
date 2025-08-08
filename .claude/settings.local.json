@@ -9,7 +9,9 @@
       "Bash(python -m pytest tests/integration/test_end_to_end.py::TestEndToEndProcessing::test_pdf_processor_integration -v)",
       "Bash(python -m pytest tests/unit/test_base_parser.py::TestBaseParser::test_to_csv -v)",
       "Bash(python -m pytest tests/ --tb=short)",
-      "Bash(python -m pytest tests/ --tb=line)"
+      "Bash(python -m pytest tests/ --tb=line)",
+      "Bash(git reset:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }
