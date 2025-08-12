@@ -55,7 +55,7 @@ const Results = ({ job, onNewUpload }) => {
   const handleDownload = async (filename) => {
     try {
       if (job?.id) {
-        await apiService.downloadFile(job.id, filename);
+        await apiService.downloadFile(job.id);
       } else {
         // Use direct download if no job ID
         await apiService.downloadFileDirect(filename);
@@ -66,19 +66,22 @@ const Results = ({ job, onNewUpload }) => {
   };
 
   const getFileStatusIcon = (file) => {
-    if (file.error) {
+    if (file.status === 'error' || file.error_message) {
       return <Error color="error" />;
+    }
+    if (file.status === 'completed') {
+      return <CheckCircle color="success" />;
     }
     return <CheckCircle color="success" />;
   };
 
   const getFileStatusColor = (file) => {
-    return file.error ? 'error' : 'success';
+    return file.status === 'error' ? 'error' : 'success';
   };
 
-  const successfulFiles = job.results?.filter(f => !f.error) || [];
-  const failedFiles = job.results?.filter(f => f.error) || [];
-  const totalTransactions = successfulFiles.reduce((sum, f) => sum + (f.transactions_count || 0), 0);
+  const successfulFiles = job.results?.filter(f => f.status === 'completed') || [];
+  const failedFiles = job.results?.filter(f => f.status === 'error') || [];
+  const totalTransactions = job.totalTransactions || 0;
 
   return (
     <Box>
@@ -190,14 +193,14 @@ const Results = ({ job, onNewUpload }) => {
                       </Box>
                     }
                     secondary={
-                      file.error 
-                        ? `Error: ${file.error}`
-                        : `${file.transactions_count || 0} transactions extracted`
+                      file.error_message 
+                        ? `Error: ${file.error_message}`
+                        : file.status === 'completed' ? 'Successfully processed' : 'Processing...'
                     }
                   />
                   <ListItemSecondaryAction>
                     <Chip
-                      label={file.error ? 'Failed' : 'Success'}
+                      label={file.status === 'error' ? 'Failed' : 'Success'}
                       color={getFileStatusColor(file)}
                       size="small"
                     />

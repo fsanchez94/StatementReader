@@ -24,41 +24,41 @@ function App() {
     // Load parser types on app start
     loadParserTypes();
     
-    // Setup socket listeners
-    socketService.connect();
+    // Setup socket listeners (disabled for now - Django backend doesn't use WebSocket)
+    // socketService.connect();
     
-    socketService.onJobStatus((data) => {
-      if (data.status === 'processing') {
-        setProcessing(true);
-      }
-    });
+    // socketService.onJobStatus((data) => {
+    //   if (data.status === 'processing') {
+    //     setProcessing(true);
+    //   }
+    // });
 
-    socketService.onJobProgress((data) => {
-      setCurrentJob(prev => ({
-        ...prev,
-        progress: data.progress,
-        currentFile: data.current_file
-      }));
-    });
+    // socketService.onJobProgress((data) => {
+    //   setCurrentJob(prev => ({
+    //     ...prev,
+    //     progress: data.progress,
+    //     currentFile: data.current_file
+    //   }));
+    // });
 
-    socketService.onJobCompleted((data) => {
-      setProcessing(false);
-      setCurrentJob(prev => ({
-        ...prev,
-        status: 'completed',
-        results: data.results,
-        outputFiles: data.output_files,
-        totalTransactions: data.total_transactions
-      }));
-    });
+    // socketService.onJobCompleted((data) => {
+    //   setProcessing(false);
+    //   setCurrentJob(prev => ({
+    //     ...prev,
+    //     status: 'completed',
+    //     results: data.results,
+    //     outputFiles: data.output_files,
+    //     totalTransactions: data.total_transactions
+    //   }));
+    // });
 
-    socketService.onJobError((data) => {
-      setProcessing(false);
-      setError(`Processing error: ${data.error}`);
-    });
+    // socketService.onJobError((data) => {
+    //   setProcessing(false);
+    //   setError(`Processing error: ${data.error}`);
+    // });
 
     return () => {
-      socketService.disconnect();
+      // socketService.disconnect();
     };
   }, []);
 
@@ -72,20 +72,21 @@ function App() {
     }
   };
 
-  const handleFilesUploaded = async (jobId) => {
+  const handleFilesUploaded = async (sessionId) => {
     try {
-      setCurrentJob({ id: jobId, status: 'uploaded' });
+      setCurrentJob({ id: sessionId, status: 'uploaded' });
       setError(null);
       
       // Start processing
-      const result = await apiService.processJob(jobId);
+      const result = await apiService.processSession(sessionId);
       
       if (result.status === 'completed') {
         setCurrentJob(prev => ({
           ...prev,
           status: 'completed',
-          results: result.results,
-          outputFiles: result.output_files
+          results: result.files,
+          outputFiles: [{ filename: result.output_file }],
+          totalTransactions: 0
         }));
       }
     } catch (err) {

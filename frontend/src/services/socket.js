@@ -1,61 +1,42 @@
-import { io } from 'socket.io-client';
-
 class SocketService {
   constructor() {
     this.socket = null;
+    this.sessionId = null;
   }
 
-  connect() {
-    const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
-    this.socket = io(socketUrl, {
-      autoConnect: true,
-    });
+  connect(sessionId) {
+    this.sessionId = sessionId;
+    const wsUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:5000';
+    this.socket = new WebSocket(`${wsUrl}/ws/progress/${sessionId}/`);
 
-    this.socket.on('connect', () => {
-      console.log('Socket connected');
-    });
+    this.socket.onopen = () => {
+      console.log('WebSocket connected');
+    };
 
-    this.socket.on('disconnect', () => {
-      console.log('Socket disconnected');
-    });
+    this.socket.onclose = () => {
+      console.log('WebSocket disconnected');
+    };
+
+    this.socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
 
     return this.socket;
   }
 
   disconnect() {
     if (this.socket) {
-      this.socket.disconnect();
+      this.socket.close();
       this.socket = null;
     }
   }
 
-  onJobStatus(callback) {
+  onMessage(callback) {
     if (this.socket) {
-      this.socket.on('job_status', callback);
-    }
-  }
-
-  onJobProgress(callback) {
-    if (this.socket) {
-      this.socket.on('job_progress', callback);
-    }
-  }
-
-  onJobCompleted(callback) {
-    if (this.socket) {
-      this.socket.on('job_completed', callback);
-    }
-  }
-
-  onJobError(callback) {
-    if (this.socket) {
-      this.socket.on('job_error', callback);
-    }
-  }
-
-  offAllListeners() {
-    if (this.socket) {
-      this.socket.removeAllListeners();
+      this.socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        callback(data);
+      };
     }
   }
 }

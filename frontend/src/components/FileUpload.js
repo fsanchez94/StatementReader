@@ -114,7 +114,7 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
 
     try {
       const result = await apiService.uploadFiles(files, parserSelections, accountHolders);
-      onFilesUploaded(result.job_id);
+      onFilesUploaded(result.session_id);
     } catch (err) {
       setError(`Upload failed: ${err.message}`);
       console.error(err);

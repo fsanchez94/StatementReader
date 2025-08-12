@@ -11,7 +11,14 @@
       "Bash(python -m pytest tests/ --tb=short)",
       "Bash(python -m pytest tests/ --tb=line)",
       "Bash(git reset:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(python run_django.py:*)",
+      "Bash(python manage.py:*)",
+      "Bash(timeout:*)",
+      "Bash(python test_django_api.py)",
+      "Bash(python test_django_detailed.py)",
+      "Bash(npm start)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }

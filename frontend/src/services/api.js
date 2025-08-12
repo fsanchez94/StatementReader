@@ -10,31 +10,27 @@ class ApiService {
     });
   }
 
-  async healthCheck() {
-    const response = await this.client.get('/health');
-    return response.data;
-  }
-
   async getParserTypes() {
-    const response = await this.client.get('/parser-types');
+    const response = await this.client.get('/parser-types/');
     return response.data;
   }
 
   async uploadFiles(files, parserSelections, accountHolders) {
     const formData = new FormData();
     
-    // Add files
     files.forEach(file => {
       formData.append('files', file);
     });
     
-    // Add parser selections
-    formData.append('parsers', JSON.stringify(parserSelections));
+    if (parserSelections) {
+      formData.append('parsers', JSON.stringify(parserSelections));
+    }
     
-    // Add account holders
-    formData.append('account_holders', JSON.stringify(accountHolders));
+    if (accountHolders) {
+      formData.append('account_holders', JSON.stringify(accountHolders));
+    }
     
-    const response = await this.client.post('/upload', formData, {
+    const response = await this.client.post('/upload/', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -43,50 +39,35 @@ class ApiService {
     return response.data;
   }
 
-  async processJob(jobId) {
-    const response = await this.client.post(`/process/${jobId}`);
+  async processSession(sessionId) {
+    const response = await this.client.post(`/process/${sessionId}/`);
     return response.data;
   }
 
-  async getJobStatus(jobId) {
-    const response = await this.client.get(`/job/${jobId}`);
+  async getSessionStatus(sessionId) {
+    const response = await this.client.get(`/status/${sessionId}/`);
     return response.data;
   }
 
-  async getAvailableFiles() {
-    const response = await this.client.get('/debug/files');
-    return response.data;
-  }
-
-  getDownloadUrl(jobId, filename) {
-    return `${API_BASE}/download/${jobId}/${filename}`;
-  }
-
-  getDirectDownloadUrl(filename) {
-    return `${API_BASE}/download-direct/${filename}`;
-  }
-
-  async downloadFile(jobId, filename) {
-    try {
-      // Try the original job-based download first
-      const response = await this.client.get(`/download/${jobId}/${filename}`, {
-        responseType: 'blob',
-      });
-      
-      this._createDownloadLink(response.data, filename);
-    } catch (error) {
-      // If job-based download fails, try direct download
-      console.log('Job-based download failed, trying direct download...');
-      await this.downloadFileDirect(filename);
-    }
-  }
-
-  async downloadFileDirect(filename) {
-    const response = await this.client.get(`/download-direct/${filename}`, {
+  async downloadFile(sessionId) {
+    const response = await this.client.get(`/download/${sessionId}/`, {
       responseType: 'blob',
     });
     
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = 'transactions.csv';
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+      }
+    }
+    
     this._createDownloadLink(response.data, filename);
+  }
+
+  async cleanupSession(sessionId) {
+    await this.client.delete(`/cleanup/${sessionId}/`);
   }
 
   _createDownloadLink(data, filename) {
