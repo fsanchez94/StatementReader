@@ -18,12 +18,33 @@ Required system dependency:
 
 ## Common Commands
 
+### Web Application (Recommended)
+Start the Django backend:
+```bash
+python scripts/run_django.py
+```
+
+Start the React frontend (in separate terminal):
+```bash
+cd frontend && npm start
+```
+
+Access the application at: http://localhost:3000
+
+### Django Admin
+Create admin user:
+```bash
+python scripts/create_admin_user.py
+```
+Access Django admin at: http://127.0.0.1:5000/admin/
+
+### Command Line Processing (Legacy)
 Run single PDF processing (interactive):
 ```bash
 python src/main.py
 ```
 
-Run batch processing (multiple PDFs, interactive) - **PRIMARY SCRIPT**:
+Run batch processing (multiple PDFs, interactive):
 ```bash
 python src/mainbundlev2.py
 ```
@@ -35,11 +56,6 @@ Note: This script reads folder paths from `config.json`. To change paths, edit t
         "spouse_folder": "path/to/spouse/pdfs"
     }
 }
-```
-
-Run alternative batch processing:
-```bash
-python src/mainbundle.py
 ```
 
 ## Architecture
@@ -79,23 +95,60 @@ Note: `mainbundlev2.py` processes separate husband/spouse folders and creates in
 
 ```
 pdf_bank_parser/
-├── src/                     # Source code only
-│   ├── main.py             # Single PDF processor
-│   ├── mainbundle.py       # Batch processor (Excel output)
-│   ├── mainbundlev2.py     # Primary batch processor (CSV output)
-│   ├── parsers/            # Bank-specific parsers
-│   └── utils/              # Shared utilities
-├── data/
-│   ├── input/
-│   │   ├── husband/        # Husband's PDF statements
-│   │   └── spouse/         # Spouse's PDF statements
-│   └── output/
-│       └── csv/            # Generated CSV files
-├── config.json             # Configuration file for folder paths
-├── requirements.txt
-├── README.md
-└── CLAUDE.md
+├── backends/               # Backend implementations
+│   ├── django/            # Django REST API (primary)
+│   └── legacy/            # Flask API (legacy)
+├── frontend/              # React web application
+│   ├── src/              # React components and services
+│   └── public/           # Static assets
+├── src/                   # Core parsing engine
+│   ├── main.py           # Single PDF processor (CLI)
+│   ├── mainbundlev2.py   # Batch processor (CLI)
+│   ├── parsers/          # Bank-specific parsers
+│   └── utils/            # PDF processing utilities
+├── scripts/               # Management and utility scripts
+│   ├── run_django.py     # Start Django server
+│   ├── create_admin_user.py # Create Django admin user
+│   └── start_frontend.py # Start React frontend
+├── tests/                 # All test files
+│   ├── api/              # Django API tests
+│   ├── unit/             # Unit tests
+│   ├── integration/      # Integration tests
+│   └── fixtures/         # Test fixtures
+├── data/                  # User data
+│   ├── input/            # Input PDF files
+│   └── output/           # Generated CSV files
+├── temp/                  # Runtime temporary files
+│   ├── uploads/          # Uploaded PDF files
+│   └── outputs/          # Generated output files
+├── docs/                  # Documentation
+├── config.json           # Configuration file
+├── requirements.txt      # Python dependencies
+└── README.md
 ```
+
+## Django Backend API
+
+The Django backend provides a REST API with the following endpoints:
+
+### API Endpoints
+- `POST /api/upload/` - Upload PDFs with parser selection
+- `POST /api/process/<session_id>/` - Process uploaded files
+- `GET /api/status/<session_id>/` - Check processing status
+- `GET /api/download/<session_id>/` - Download CSV results
+- `DELETE /api/cleanup/<session_id>/` - Clean up session files
+- `GET /api/parser-types/` - Get available parser types
+
+### Database Models
+- **ProcessingSession**: Tracks file processing sessions
+- **UploadedFile**: Individual file records with parser configuration
+
+### Features
+- Session-based processing with UUID tracking
+- Manual parser selection for each file
+- Account holder support (husband/spouse)
+- File cleanup and error handling
+- Django admin interface for monitoring
 
 ## Development Notes
 
@@ -104,3 +157,4 @@ pdf_bank_parser/
 - OCR fallback handles scanned PDFs when text extraction fails
 - Spouse account processing supported via `is_spouse` parameter
 - Transaction amounts normalized to positive values in output
+- Django backend uses SQLite for development (configurable for production)

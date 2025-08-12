@@ -14,7 +14,7 @@ from asgiref.sync import async_to_sync
 from .models import ProcessingSession, UploadedFile
 from .serializers import ProcessingSessionSerializer
 
-sys.path.append(str(Path(__file__).parent.parent.parent / 'src'))
+sys.path.append(str(Path(__file__).parent.parent.parent.parent / 'src'))
 from parsers.parser_factory import ParserFactory
 from utils.pdf_processor import PDFProcessor
 

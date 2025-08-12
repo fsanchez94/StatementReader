@@ -18,7 +18,9 @@
       "Bash(python test_django_api.py)",
       "Bash(python test_django_detailed.py)",
       "Bash(npm start)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(cp:*)",
+      "Bash(true)"
     ],
     "deny": []
   }

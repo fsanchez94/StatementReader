@@ -6,7 +6,7 @@ import django
 from pathlib import Path
 
 # Setup Django
-django_path = Path(__file__).parent / 'django_backend'
+django_path = Path(__file__).parent.parent / 'backends' / 'django'
 sys.path.insert(0, str(django_path))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'pdf_parser_project.settings')
 django.setup()

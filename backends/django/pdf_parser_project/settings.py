@@ -114,8 +114,8 @@ REST_FRAMEWORK = {
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-TEMP_UPLOAD_DIR = BASE_DIR.parent / 'temp_uploads'
-TEMP_OUTPUT_DIR = BASE_DIR.parent / 'temp_outputs'
+TEMP_UPLOAD_DIR = BASE_DIR.parent.parent / 'temp' / 'uploads'
+TEMP_OUTPUT_DIR = BASE_DIR.parent.parent / 'temp' / 'outputs'
 
 os.makedirs(TEMP_UPLOAD_DIR, exist_ok=True)
 os.makedirs(TEMP_OUTPUT_DIR, exist_ok=True)

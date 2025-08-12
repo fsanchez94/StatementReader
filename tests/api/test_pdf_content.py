@@ -4,12 +4,12 @@ import sys
 from pathlib import Path
 
 # Add src to path
-sys.path.append(str(Path(__file__).parent / 'src'))
+sys.path.append(str(Path(__file__).parent.parent.parent / 'src'))
 
 from utils.pdf_processor import PDFProcessor
 
 def test_pdf_content():
-    pdf_files = list(Path("data/input/husband").glob("*.pdf"))
+    pdf_files = list(Path("../../data/input/husband").glob("*.pdf"))
     if not pdf_files:
         print("No PDF files found")
         return
