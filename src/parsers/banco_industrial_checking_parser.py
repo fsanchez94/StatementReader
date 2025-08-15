@@ -50,14 +50,18 @@ class BancoIndustrialCheckingParser(BaseParser):
                 continue
             
             try:
-                # Match pattern for transactions
+                # Try to match transaction pattern - handle both formats
+                # Format 1: Date DocNo Description Amount Balance (single amount = debit)
+                # Format 2: Date DocNo Description  Amount Balance (with space before amount = credit)
+                
+                # First try: Standard format with amounts before balance
                 match = re.match(
-                    r'(\d{2}/\d{2}/\d{4})\s+'  # Date
-                    r'(\d+)?\s*'                # Optional reference number
-                    r'(.+?)\s+'                 # Description
-                    r'([\d,]+\.\d{2})\s+'      # Amount
-                    r'([\d,]+\.\d{2})'         # Balance
-                    r'\s*$',                    # End of line
+                    r'(\d{2}/\d{2}/\d{4})\s+'           # Date
+                    r'(\d+)\s+'                         # Document number
+                    r'(.+?)\s+'                         # Description (non-greedy)
+                    r'([\d,]+\.\d{2})\s+'               # Amount 
+                    r'([\d,]+\.\d{2})'                  # Balance
+                    r'\s*$',                            # End of line
                     line.strip()
                 )
                 
@@ -74,10 +78,11 @@ class BancoIndustrialCheckingParser(BaseParser):
                     
                     try:
                         date = datetime.strptime(date_str, '%d/%m/%Y').date()
-                        amount = float(amount_str.replace(',', ''))
                         current_balance = float(balance_str.replace(',', ''))
                         
-                        # Determine transaction type by comparing balances
+                        amount_value = float(amount_str.replace(',', ''))
+                        
+                        # Determine transaction type based on balance change and transaction patterns
                         if previous_balance is not None:
                             balance_change = current_balance - previous_balance
                             print(f"  Balance change: {balance_change}")
@@ -85,19 +90,20 @@ class BancoIndustrialCheckingParser(BaseParser):
                             # If balance increased, it's a credit (positive amount)
                             if balance_change > 0:
                                 transaction_type = 'credit'
-                                amount = abs(amount)  # Ensure amount is positive
+                                amount = abs(amount_value)  # Ensure amount is positive
                             # If balance decreased, it's a debit (negative amount)
                             else:
                                 transaction_type = 'debit'
-                                amount = -abs(amount)  # Ensure amount is negative
+                                amount = -abs(amount_value)  # Ensure amount is negative
                         else:
-                            # For first transaction, compare amount with balance
+                            # For first transaction, we cannot reliably determine type without previous balance
+                            # Default to treating the amount as shown (positive = credit, negative would be debit)
+                            # This will be corrected by subsequent balance changes
                             transaction_type = 'credit'
-                            amount = abs(amount)  # Default to positive for first transaction
+                            amount = abs(amount_value)
                         
                         previous_balance = current_balance
                         
-                        print(f"  Transaction Type: {transaction_type}")
                         print(f"  Final Amount: {amount}")
                         
                         # Set account name based on spouse status

@@ -50,14 +50,14 @@ class BIUSDCheckingParser(BaseParser):
                 continue
             
             try:
-                # Match pattern for transactions
+                # Match pattern for transactions - handle real PDF format
                 match = re.match(
-                    r'(\d{2}/\d{2}/\d{4})\s+'  # Date
-                    r'(\d+)?\s*'                # Optional reference number
-                    r'(.+?)\s+'                 # Description
-                    r'([\d,]+\.\d{2})\s+'      # Amount
-                    r'([\d,]+\.\d{2})'         # Balance
-                    r'\s*$',                    # End of line
+                    r'(\d{2}/\d{2}/\d{4})\s+'           # Date
+                    r'(\d+)\s+'                         # Document number (required)
+                    r'(.+?)\s+'                         # Description (non-greedy)
+                    r'([\d,]+\.\d{2})\s+'               # Amount 
+                    r'([\d,]+\.\d{2})'                  # Balance
+                    r'\s*$',                            # End of line
                     line.strip()
                 )
                 
@@ -76,29 +76,31 @@ class BIUSDCheckingParser(BaseParser):
                         date = datetime.strptime(date_str, '%d/%m/%Y').date()
                         amount_usd = float(amount_str.replace(',', ''))
                         current_balance_usd = float(balance_str.replace(',', ''))
-                        # Convert USD to GTQ
-                        amount = amount_usd * 7.8
-                        current_balance = current_balance_usd * 7.8
+                        # Convert USD to GTQ for internal calculations
+                        amount_gtq = amount_usd * 7.8
+                        current_balance_gtq = current_balance_usd * 7.8
                         
-                        # Determine transaction type by comparing balances
+                        # Determine transaction type based on balance change and transaction patterns
                         if previous_balance is not None:
-                            balance_change = current_balance - previous_balance
+                            balance_change = current_balance_gtq - previous_balance
                             print(f"  Balance change: {balance_change}")
                             
                             # If balance increased, it's a credit (positive amount)
                             if balance_change > 0:
                                 transaction_type = 'credit'
-                                amount = abs(amount)  # Ensure amount is positive
+                                amount = abs(amount_gtq)  # Ensure amount is positive
                             # If balance decreased, it's a debit (negative amount)
                             else:
                                 transaction_type = 'debit'
-                                amount = -abs(amount)  # Ensure amount is negative
+                                amount = -abs(amount_gtq)  # Ensure amount is negative
                         else:
-                            # For first transaction, compare amount with balance
+                            # For first transaction, we cannot reliably determine type without previous balance
+                            # Default to treating the amount as shown (positive = credit, negative would be debit)
+                            # This will be corrected by subsequent balance changes
                             transaction_type = 'credit'
-                            amount = abs(amount)  # Default to positive for first transaction
+                            amount = abs(amount_gtq)
                         
-                        previous_balance = current_balance
+                        previous_balance = current_balance_gtq
                         
                         print(f"  Transaction Type: {transaction_type}")
                         print(f"  Final Amount: {amount}")

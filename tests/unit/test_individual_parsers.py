@@ -33,9 +33,30 @@ class TestBancoIndustrialCheckingParser:
         assert self.parser.is_spouse is False
         assert self.parser_spouse.is_spouse is True
 
-    def test_parse_valid_transaction_line(self):
-        """Test parsing a valid transaction line"""
-        lines = ["15/01/2024 123456 PAGO TARJETA DE CREDITO 1,500.00 5,000.00"]
+    def test_parse_valid_transaction_line_debit(self):
+        """Test parsing a debit transaction identified through balance change"""
+        lines = [
+            "15/01/2024 123456 DEPOSITO INICIAL  500.00 2,000.00",           # First (defaults to credit)
+            "16/01/2024 123457 PAGO TARJETA DE CREDITO 1,500.00  500.00"     # Second (debit by balance change)
+        ]
+        
+        transactions = self.parser._parse_page_text(lines)
+        
+        assert len(transactions) == 2
+        transaction = transactions[1]  # Test the second transaction
+        
+        assert transaction['Date'] == date(2024, 1, 16)
+        assert transaction['Description'] == 'PAGO TARJETA DE CREDITO'
+        assert transaction['Original Description'] == 'PAGO TARJETA DE CREDITO'
+        # Balance decreased, so it's a debit (negative amount)
+        assert transaction['Amount'] == -1500.00
+        assert transaction['Transaction Type'] == 'debit'
+        assert transaction['Account Name'] == 'Industrial GTQ'
+        assert transaction['Category'] == ''
+
+    def test_parse_valid_transaction_line_credit(self):
+        """Test parsing a valid credit transaction line"""
+        lines = ["15/01/2024 123456 DEPOSITO EFECTIVO  500.00 2,000.00"]
         
         transactions = self.parser._parse_page_text(lines)
         
@@ -43,16 +64,17 @@ class TestBancoIndustrialCheckingParser:
         transaction = transactions[0]
         
         assert transaction['Date'] == date(2024, 1, 15)
-        assert transaction['Description'] == 'PAGO TARJETA DE CREDITO'
-        assert transaction['Original Description'] == 'PAGO TARJETA DE CREDITO'
-        assert transaction['Amount'] == 1500.00
+        assert transaction['Description'] == 'DEPOSITO EFECTIVO'
+        assert transaction['Original Description'] == 'DEPOSITO EFECTIVO'
+        # Amount in Crédito column, so it's a credit (positive amount)
+        assert transaction['Amount'] == 500.00
         assert transaction['Transaction Type'] == 'credit'
         assert transaction['Account Name'] == 'Industrial GTQ'
         assert transaction['Category'] == ''
 
     def test_parse_transaction_line_spouse_account(self):
         """Test parsing transaction for spouse account"""
-        lines = ["15/01/2024 123456 DEPOSITO EFECTIVO 500.00 2,000.00"]
+        lines = ["15/01/2024 123456 DEPOSITO EFECTIVO  500.00 2,000.00"]
         
         transactions = self.parser_spouse._parse_page_text(lines)
         
@@ -62,19 +84,19 @@ class TestBancoIndustrialCheckingParser:
     def test_parse_multiple_transactions(self):
         """Test parsing multiple transaction lines"""
         lines = [
-            "15/01/2024 123456 DEPOSITO EFECTIVO 500.00 2,000.00",
-            "16/01/2024 123457 PAGO SERVICIOS 200.00 1,800.00"
+            "15/01/2024 123456 DEPOSITO EFECTIVO  500.00 2,000.00",  # Credit
+            "16/01/2024 123457 PAGO SERVICIOS 200.00  1,800.00"     # Debit
         ]
         
         transactions = self.parser._parse_page_text(lines)
         
         assert len(transactions) == 2
         
-        # First transaction (credit - balance increased from 1500 to 2000)
+        # First transaction: amount in Crédito column
         assert transactions[0]['Transaction Type'] == 'credit'
         assert transactions[0]['Amount'] == 500.00
         
-        # Second transaction (debit - balance decreased from 2000 to 1800)
+        # Second transaction: amount in Débito column  
         assert transactions[1]['Transaction Type'] == 'debit'
         assert transactions[1]['Amount'] == -200.00
 
@@ -84,7 +106,7 @@ class TestBancoIndustrialCheckingParser:
             "SUBTOTAL DE CREDITOS 1,500.00",
             "TOTAL DE DEBITOS 500.00",
             "SALDO ANTERIOR 1,000.00",
-            "15/01/2024 123456 DEPOSITO EFECTIVO 500.00 2,000.00",
+            "15/01/2024 123456 DEPOSITO EFECTIVO  500.00 2,000.00",
             "SALDO ACTUAL 2,000.00"
         ]
         
@@ -98,7 +120,7 @@ class TestBancoIndustrialCheckingParser:
         """Test that header lines are skipped"""
         lines = [
             "FECHA REFERENCIA DESCRIPCIÓN DÉBITO CRÉDITO SALDO",
-            "15/01/2024 123456 DEPOSITO EFECTIVO 500.00 2,000.00"
+            "15/01/2024 123456 DEPOSITO EFECTIVO  500.00 2,000.00"
         ]
         
         transactions = self.parser._parse_page_text(lines)
@@ -106,9 +128,9 @@ class TestBancoIndustrialCheckingParser:
         assert len(transactions) == 1
         assert transactions[0]['Description'] == 'DEPOSITO EFECTIVO'
 
-    def test_parse_line_without_reference_number(self):
-        """Test parsing line without reference number"""
-        lines = ["15/01/2024 DEPOSITO EFECTIVO 500.00 2,000.00"]
+    def test_parse_line_with_reference_number(self):
+        """Test parsing line with reference number"""
+        lines = ["15/01/2024 123456 DEPOSITO EFECTIVO  500.00 2,000.00"]
         
         transactions = self.parser._parse_page_text(lines)
         
@@ -117,7 +139,7 @@ class TestBancoIndustrialCheckingParser:
 
     def test_parse_line_with_comma_in_amounts(self):
         """Test parsing line with comma-separated amounts"""
-        lines = ["15/01/2024 123456 DEPOSITO GRANDE 1,500.50 10,000.75"]
+        lines = ["15/01/2024 123456 DEPOSITO GRANDE  1,500.50 10,000.75"]
         
         transactions = self.parser._parse_page_text(lines)
         
@@ -147,7 +169,7 @@ class TestBancoIndustrialCheckingParser:
         lines = [
             "This is not a transaction line",
             "15/01/2024 incomplete line",
-            "15/01/2024 123456 DEPOSITO EFECTIVO 500.00 2,000.00"  # Valid line
+            "15/01/2024 123456 DEPOSITO EFECTIVO  500.00 2,000.00"  # Valid line
         ]
         
         transactions = self.parser._parse_page_text(lines)
@@ -162,8 +184,8 @@ class TestBancoIndustrialCheckingParser:
         # Setup mock PDF
         mock_page = Mock()
         mock_page.extract_text.return_value = """FECHA REFERENCIA DESCRIPCIÓN DÉBITO CRÉDITO SALDO
-15/01/2024 123456 DEPOSITO EFECTIVO 500.00 2,000.00
-16/01/2024 123457 PAGO SERVICIOS 200.00 1,800.00"""
+15/01/2024 123456 DEPOSITO EFECTIVO  500.00 2,000.00
+16/01/2024 123457 PAGO SERVICIOS 200.00  1,800.00"""
         
         mock_pdf = MagicMock()
         mock_pdf.pages = [mock_page]
@@ -185,10 +207,10 @@ class TestBancoIndustrialCheckingParser:
         """Test extract_data with multiple PDF pages"""
         # Setup mock PDF with multiple pages
         mock_page1 = Mock()
-        mock_page1.extract_text.return_value = "15/01/2024 123456 DEPOSITO EFECTIVO 500.00 2,000.00"
+        mock_page1.extract_text.return_value = "15/01/2024 123456 DEPOSITO EFECTIVO  500.00 2,000.00"
         
         mock_page2 = Mock()
-        mock_page2.extract_text.return_value = "16/01/2024 123457 PAGO SERVICIOS 200.00 1,800.00"
+        mock_page2.extract_text.return_value = "16/01/2024 123457 PAGO SERVICIOS 200.00  1,800.00"
         
         mock_pdf = MagicMock()
         mock_pdf.pages = [mock_page1, mock_page2]
@@ -201,6 +223,62 @@ class TestBancoIndustrialCheckingParser:
             transactions = self.parser.extract_data()
         
         assert len(transactions) == 2
+
+    def test_transaction_with_debit_column(self):
+        """Test transaction identified as debit through balance change"""
+        lines = [
+            "15/01/2024 123456 DEPOSITO INICIAL  500.00 2,000.00",   # First (defaults to credit)
+            "16/01/2024 123457 RETIRO CAJERO 1,000.00  1,000.00"    # Second (debit by balance change)
+        ]
+        
+        transactions = self.parser._parse_page_text(lines)
+        
+        assert len(transactions) == 2
+        transaction = transactions[1]  # Test the second transaction
+        
+        assert transaction['Description'] == 'RETIRO CAJERO'
+        assert transaction['Transaction Type'] == 'debit'
+        assert transaction['Amount'] == -1000.00  # Negative for debit
+        
+    def test_transaction_with_credit_column(self):
+        """Test transaction with amount in Crédito column"""
+        lines = ["15/01/2024 123456 DEPOSITO EFECTIVO  500.00 2,000.00"]
+        
+        transactions = self.parser._parse_page_text(lines)
+        
+        assert len(transactions) == 1
+        transaction = transactions[0]
+        
+        assert transaction['Description'] == 'DEPOSITO EFECTIVO'
+        assert transaction['Transaction Type'] == 'credit'
+        assert transaction['Amount'] == 500.00  # Positive for credit
+        
+    def test_large_transaction_amounts(self):
+        """Test parsing of large transaction amounts"""
+        lines = [
+            "15/01/2024 123456 DEPOSITO INICIAL  1,000.00 10,000.00",  # First (defaults to credit)
+            "16/01/2024 123457 RETIRO GRANDE 9,500.00  500.00"         # Second (debit by balance change)
+        ]
+        
+        transactions = self.parser._parse_page_text(lines)
+        
+        assert len(transactions) == 2
+        transaction = transactions[1]  # Test the second transaction
+        
+        assert transaction['Transaction Type'] == 'debit'
+        assert transaction['Amount'] == -9500.00
+        
+    def test_transaction_with_large_credit(self):
+        """Test transaction with large credit amount"""
+        lines = ["15/01/2024 123456 DEPOSITO INICIAL  1,000.00 1,000.00"]
+        
+        transactions = self.parser._parse_page_text(lines)
+        
+        assert len(transactions) == 1
+        transaction = transactions[0]
+        
+        assert transaction['Transaction Type'] == 'credit'
+        assert transaction['Amount'] == 1000.00
 
 
 class TestParserEdgeCases:

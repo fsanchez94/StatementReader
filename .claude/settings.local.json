@@ -22,7 +22,11 @@
       "Bash(cp:*)",
       "Bash(true)",
       "Bash(python -m pytest tests/unit/test_individual_parsers.py::TestParsersWithRealPDFs::test_industrial_checking_with_real_pdf -v)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(npm start:*)",
+      "Bash(taskkill:*)",
+      "Bash(git worktree:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }
