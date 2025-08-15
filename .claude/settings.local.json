@@ -20,7 +20,9 @@
       "Bash(npm start)",
       "Bash(curl:*)",
       "Bash(cp:*)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(python -m pytest tests/unit/test_individual_parsers.py::TestParsersWithRealPDFs::test_industrial_checking_with_real_pdf -v)",
+      "Bash(python:*)"
     ],
     "deny": []
   }

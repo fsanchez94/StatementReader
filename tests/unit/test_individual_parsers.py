@@ -1,10 +1,25 @@
 import pytest
+import sys
+from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, date
 from src.parsers.banco_industrial_checking_parser import BancoIndustrialCheckingParser
 from src.parsers.banco_industrial_credit_parser import BancoIndustrialCreditParser
 from src.parsers.bam_credit_parser import BAMCreditParser
 from src.parsers.gyt_credit_parser import GyTCreditParser
+
+# Add fixtures to path for real PDF testing
+sys.path.append(str(Path(__file__).parent.parent / "fixtures"))
+
+try:
+    from test_data_loader import (
+        get_sample_pdfs_by_type, 
+        require_sample_pdfs,
+        has_sample_pdfs
+    )
+    REAL_PDF_TESTING_AVAILABLE = True
+except ImportError:
+    REAL_PDF_TESTING_AVAILABLE = False
 
 class TestBancoIndustrialCheckingParser:
     def setup_method(self):
@@ -255,3 +270,97 @@ class TestParserEdgeCases:
         
         assert len(transactions) == 1
         assert transactions[0]['Amount'] == 1000000.99
+
+
+@pytest.mark.skipif(not REAL_PDF_TESTING_AVAILABLE, reason="Real PDF testing not available")
+class TestParsersWithRealPDFs:
+    """Integration tests using real PDF files when available"""
+    
+    @pytest.mark.skipif(not has_sample_pdfs("industrial", "checking"), 
+                       reason="No industrial checking sample PDFs available")
+    def test_industrial_checking_with_real_pdf(self):
+        """Test Industrial checking parser with real PDF samples"""
+        pdf_files = get_sample_pdfs_by_type("industrial", "checking")
+        
+        for pdf_path in pdf_files[:1]:  # Test first PDF only for unit tests
+            parser = BancoIndustrialCheckingParser(pdf_path)
+            transactions = parser.extract_data()
+            
+            # Should return a list
+            assert isinstance(transactions, list)
+            
+            # If transactions found, validate structure
+            if transactions:
+                transaction = transactions[0]
+                assert 'Date' in transaction
+                assert 'Description' in transaction
+                assert 'Amount' in transaction
+                assert 'Transaction Type' in transaction
+                assert 'Account Name' in transaction
+                assert transaction['Account Name'] == 'Industrial GTQ'
+    
+    @pytest.mark.skipif(not has_sample_pdfs("industrial", "credit"), 
+                       reason="No industrial credit sample PDFs available")
+    def test_industrial_credit_with_real_pdf(self):
+        """Test Industrial credit parser with real PDF samples"""
+        pdf_files = get_sample_pdfs_by_type("industrial", "credit")
+        
+        for pdf_path in pdf_files[:1]:  # Test first PDF only for unit tests
+            parser = BancoIndustrialCreditParser(pdf_path)
+            transactions = parser.extract_data()
+            
+            # Should return a list
+            assert isinstance(transactions, list)
+            
+            # If transactions found, validate structure
+            if transactions:
+                transaction = transactions[0]
+                assert 'Date' in transaction
+                assert 'Description' in transaction
+                assert 'Amount' in transaction
+                assert 'Transaction Type' in transaction
+                assert 'Account Name' in transaction
+    
+    @pytest.mark.skipif(not has_sample_pdfs("bam", "credit"), 
+                       reason="No BAM credit sample PDFs available")
+    def test_bam_credit_with_real_pdf(self):
+        """Test BAM credit parser with real PDF samples"""
+        pdf_files = get_sample_pdfs_by_type("bam", "credit")
+        
+        for pdf_path in pdf_files[:1]:  # Test first PDF only for unit tests
+            parser = BAMCreditParser(pdf_path)
+            transactions = parser.extract_data()
+            
+            # Should return a list
+            assert isinstance(transactions, list)
+            
+            # If transactions found, validate structure
+            if transactions:
+                transaction = transactions[0]
+                assert 'Date' in transaction
+                assert 'Description' in transaction
+                assert 'Amount' in transaction
+                assert 'Transaction Type' in transaction
+                assert 'Account Name' in transaction
+    
+    @pytest.mark.skipif(not has_sample_pdfs("gyt", "credit"), 
+                       reason="No GyT credit sample PDFs available")
+    def test_gyt_credit_with_real_pdf(self):
+        """Test GyT credit parser with real PDF samples"""
+        pdf_files = get_sample_pdfs_by_type("gyt", "credit")
+        
+        for pdf_path in pdf_files[:1]:  # Test first PDF only for unit tests
+            parser = GyTCreditParser(pdf_path)
+            transactions = parser.extract_data()
+            
+            # Should return a list
+            assert isinstance(transactions, list)
+            
+            # If transactions found, validate structure
+            if transactions:
+                transaction = transactions[0]
+                assert 'Date' in transaction
+                assert 'Description' in transaction
+                assert 'Amount' in transaction
+                assert 'Transaction Type' in transaction
+                assert 'Account Name' in transaction

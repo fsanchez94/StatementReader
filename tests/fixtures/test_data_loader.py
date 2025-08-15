@@ -4,6 +4,8 @@ Utility functions for loading test fixtures
 import os
 import pandas as pd
 from pathlib import Path
+import glob
+import pytest
 
 def get_fixtures_dir():
     """Get the fixtures directory path"""
@@ -68,3 +70,153 @@ SALDO FINAL 15,675.00"""
     
     content_lines = [header] + transaction_lines + [footer]
     return '\n'.join(content_lines)
+
+# Real PDF loading functions
+
+def get_sample_pdfs_dir():
+    """Get the sample PDFs directory path"""
+    return get_fixtures_dir() / "sample_pdfs"
+
+def get_expected_outputs_dir():
+    """Get the expected outputs directory path"""
+    return get_fixtures_dir() / "expected_outputs"
+
+def get_sample_pdfs_by_type(bank_type, account_type):
+    """Get list of sample PDF files for a specific bank and account type
+    
+    Args:
+        bank_type (str): Bank type (e.g., 'industrial', 'bam', 'gyt')
+        account_type (str): Account type (e.g., 'checking', 'credit', 'usd_checking')
+    
+    Returns:
+        list: List of PDF file paths
+    """
+    pdfs_dir = get_sample_pdfs_dir() / bank_type / account_type
+    
+    if not pdfs_dir.exists():
+        return []
+    
+    pdf_files = list(pdfs_dir.glob("*.pdf"))
+    return [str(pdf_path) for pdf_path in pdf_files]
+
+def get_expected_output_for_pdf(pdf_path):
+    """Get expected CSV output file path for a given PDF
+    
+    Args:
+        pdf_path (str): Path to the PDF file
+    
+    Returns:
+        str: Path to expected CSV file, or None if not found
+    """
+    pdf_path = Path(pdf_path)
+    pdf_name = pdf_path.stem  # filename without extension
+    
+    # Extract bank type from path (e.g., industrial, bam, gyt)
+    path_parts = pdf_path.parts
+    sample_pdfs_index = next(i for i, part in enumerate(path_parts) if part == "sample_pdfs")
+    bank_type = path_parts[sample_pdfs_index + 1]
+    
+    expected_csv_path = get_expected_outputs_dir() / bank_type / f"{pdf_name}.csv"
+    
+    return str(expected_csv_path) if expected_csv_path.exists() else None
+
+def has_sample_pdfs(bank_type, account_type):
+    """Check if sample PDFs are available for testing
+    
+    Args:
+        bank_type (str): Bank type
+        account_type (str): Account type
+    
+    Returns:
+        bool: True if sample PDFs are available
+    """
+    return len(get_sample_pdfs_by_type(bank_type, account_type)) > 0
+
+def require_sample_pdfs(bank_type, account_type):
+    """Decorator/function to skip tests if sample PDFs are not available
+    
+    Args:
+        bank_type (str): Bank type
+        account_type (str): Account type
+    
+    Returns:
+        pytest.mark.skipif decorator
+    """
+    return pytest.mark.skipif(
+        not has_sample_pdfs(bank_type, account_type),
+        reason=f"No sample PDFs available for {bank_type} {account_type}"
+    )
+
+def get_all_sample_pdf_combinations():
+    """Get all available bank_type, account_type combinations that have sample PDFs
+    
+    Returns:
+        list: List of tuples (bank_type, account_type, pdf_files)
+    """
+    combinations = []
+    pdfs_dir = get_sample_pdfs_dir()
+    
+    if not pdfs_dir.exists():
+        return combinations
+    
+    for bank_dir in pdfs_dir.iterdir():
+        if bank_dir.is_dir():
+            bank_type = bank_dir.name
+            for account_dir in bank_dir.iterdir():
+                if account_dir.is_dir():
+                    account_type = account_dir.name
+                    pdf_files = get_sample_pdfs_by_type(bank_type, account_type)
+                    if pdf_files:
+                        combinations.append((bank_type, account_type, pdf_files))
+    
+    return combinations
+
+def validate_sample_pdf_structure():
+    """Validate that sample PDF directory structure is correct
+    
+    Returns:
+        dict: Validation results with any issues found
+    """
+    results = {
+        'valid': True,
+        'issues': [],
+        'summary': {}
+    }
+    
+    expected_structure = {
+        'industrial': ['checking', 'usd_checking', 'credit', 'credit_usd'],
+        'bam': ['credit'],
+        'gyt': ['credit']
+    }
+    
+    pdfs_dir = get_sample_pdfs_dir()
+    
+    if not pdfs_dir.exists():
+        results['valid'] = False
+        results['issues'].append(f"Sample PDFs directory does not exist: {pdfs_dir}")
+        return results
+    
+    for bank_type, account_types in expected_structure.items():
+        bank_dir = pdfs_dir / bank_type
+        if not bank_dir.exists():
+            results['issues'].append(f"Missing bank directory: {bank_type}")
+            continue
+            
+        results['summary'][bank_type] = {}
+        
+        for account_type in account_types:
+            account_dir = bank_dir / account_type
+            if not account_dir.exists():
+                results['issues'].append(f"Missing account directory: {bank_type}/{account_type}")
+                continue
+            
+            pdf_count = len(list(account_dir.glob("*.pdf")))
+            results['summary'][bank_type][account_type] = pdf_count
+            
+            if pdf_count == 0:
+                results['issues'].append(f"No PDF files in: {bank_type}/{account_type}")
+    
+    if results['issues']:
+        results['valid'] = False
+    
+    return results
