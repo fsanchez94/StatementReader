@@ -27,3 +27,82 @@ class UploadedFile(models.Model):
     
     class Meta:
         ordering = ['filename']
+
+
+class Category(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subcategories')
+    color = models.CharField(max_length=7, default='#808080')  # Hex color
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name_plural = 'Categories'
+    
+    def __str__(self):
+        if self.parent:
+            return f"{self.parent.name} > {self.name}"
+        return self.name
+
+
+class Transaction(models.Model):
+    # Basic transaction data
+    session = models.ForeignKey(ProcessingSession, on_delete=models.CASCADE, related_name='transactions')
+    uploaded_file = models.ForeignKey(UploadedFile, on_delete=models.CASCADE, related_name='transactions')
+    date = models.DateField()
+    description = models.TextField()
+    original_description = models.TextField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    transaction_type = models.CharField(max_length=10)  # 'credit' or 'debit'
+    account_name = models.CharField(max_length=100)
+    account_holder = models.CharField(max_length=20)  # 'husband' or 'spouse'
+    
+    # Bank/parser info
+    bank_type = models.CharField(max_length=50)
+    account_type = models.CharField(max_length=50)
+    
+    # Categorization
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
+    category_confidence = models.FloatField(default=0.0)  # Auto-categorization confidence
+    manually_categorized = models.BooleanField(default=False)  # User manually set category
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-date', '-created_at']
+        indexes = [
+            models.Index(fields=['date']),
+            models.Index(fields=['description']),
+            models.Index(fields=['account_holder']),
+            models.Index(fields=['bank_type', 'account_type']),
+        ]
+    
+    def __str__(self):
+        return f"{self.date} - {self.description[:50]} - {self.amount}"
+
+
+class TransactionPattern(models.Model):
+    pattern = models.CharField(max_length=255, unique=True)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='patterns')
+    confidence = models.FloatField(default=1.0)  # Pattern matching confidence
+    match_type = models.CharField(max_length=20, default='contains', choices=[
+        ('exact', 'Exact Match'),
+        ('contains', 'Contains'),
+        ('starts_with', 'Starts With'),
+        ('ends_with', 'Ends With'),
+        ('regex', 'Regular Expression'),
+    ])
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by_learning = models.BooleanField(default=False)  # Auto-created vs manually added
+    
+    class Meta:
+        ordering = ['-confidence', 'pattern']
+        indexes = [
+            models.Index(fields=['pattern']),
+            models.Index(fields=['is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.pattern} -> {self.category.name} ({self.confidence:.2f})"
