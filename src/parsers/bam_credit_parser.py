@@ -111,6 +111,7 @@ class BAMCreditParser(BaseParser):
                         try:
                             original_value = float(credit_str.replace(',', ''))
                             amount = original_value * 7.8 if original_currency == 'USD' else original_value
+                            amount = abs(amount)  # Ensure amount is positive
                             transaction_type = 'credit'
                             print(f"Found credit transaction: {amount} GTQ (original: {original_value} {original_currency})")
                         except ValueError:
@@ -120,7 +121,8 @@ class BAMCreditParser(BaseParser):
                     elif debit_str != "0.00":
                         try:
                             original_value = float(debit_str.replace(',', ''))
-                            amount = -original_value * 7.8 if original_currency == 'USD' else -original_value
+                            amount = original_value * 7.8 if original_currency == 'USD' else original_value
+                            amount = abs(amount)  # Ensure amount is positive
                             transaction_type = 'debit'
                             print(f"Found debit transaction: {amount} GTQ (original: {original_value} {original_currency})")
                         except ValueError:

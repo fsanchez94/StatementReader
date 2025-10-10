@@ -81,9 +81,10 @@ class BancoIndustrialCreditParser(BaseParser):
                     print(f"Establishment: {establishment}")
                     print(f"Amount: {amount}")
                     
-                    # Determine if amount should be negative or positive
+                    # Determine transaction type (all amounts are always positive in output)
+                    amount = abs(amount)
+
                     if trans_type in self.DEBIT_TYPES:
-                        amount = -amount
                         transaction_type = 'debit'
                     elif trans_type in self.CREDIT_TYPES:
                         transaction_type = 'credit'
@@ -93,8 +94,8 @@ class BancoIndustrialCreditParser(BaseParser):
                         print(f"Found unknown transaction type: {trans_type}")
                         continue
                     
-                    # Set account name based on spouse status
-                    account_name = "BI 1116 (Spouse)" if self.is_spouse else "BI 1116"
+                    # Set account name
+                    account_name = "BI 1116"
                     
                     transaction = {
                         'Date': date,

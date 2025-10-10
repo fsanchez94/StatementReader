@@ -83,31 +83,30 @@ class BancoIndustrialCheckingParser(BaseParser):
                         amount_value = float(amount_str.replace(',', ''))
                         
                         # Determine transaction type based on balance change and transaction patterns
+                        # All amounts are always positive in the output
+                        amount = abs(amount_value)
+
                         if previous_balance is not None:
                             balance_change = current_balance - previous_balance
                             print(f"  Balance change: {balance_change}")
-                            
-                            # If balance increased, it's a credit (positive amount)
+
+                            # If balance increased, it's a credit
                             if balance_change > 0:
                                 transaction_type = 'credit'
-                                amount = abs(amount_value)  # Ensure amount is positive
-                            # If balance decreased, it's a debit (negative amount)
+                            # If balance decreased, it's a debit
                             else:
                                 transaction_type = 'debit'
-                                amount = -abs(amount_value)  # Ensure amount is negative
                         else:
                             # For first transaction, we cannot reliably determine type without previous balance
-                            # Default to treating the amount as shown (positive = credit, negative would be debit)
-                            # This will be corrected by subsequent balance changes
+                            # Default to credit
                             transaction_type = 'credit'
-                            amount = abs(amount_value)
                         
                         previous_balance = current_balance
                         
                         print(f"  Final Amount: {amount}")
                         
-                        # Set account name based on spouse status
-                        account_name = "Industrial GTQ (Spouse)" if self.is_spouse else "Industrial GTQ"
+                        # Set account name
+                        account_name = "Industrial GTQ"
                         
                         transaction = {
                             'Date': date,

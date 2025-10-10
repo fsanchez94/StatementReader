@@ -81,32 +81,31 @@ class BIUSDCheckingParser(BaseParser):
                         current_balance_gtq = current_balance_usd * 7.8
                         
                         # Determine transaction type based on balance change and transaction patterns
+                        # All amounts are always positive in the output
+                        amount = abs(amount_gtq)
+
                         if previous_balance is not None:
                             balance_change = current_balance_gtq - previous_balance
                             print(f"  Balance change: {balance_change}")
-                            
-                            # If balance increased, it's a credit (positive amount)
+
+                            # If balance increased, it's a credit
                             if balance_change > 0:
                                 transaction_type = 'credit'
-                                amount = abs(amount_gtq)  # Ensure amount is positive
-                            # If balance decreased, it's a debit (negative amount)
+                            # If balance decreased, it's a debit
                             else:
                                 transaction_type = 'debit'
-                                amount = -abs(amount_gtq)  # Ensure amount is negative
                         else:
                             # For first transaction, we cannot reliably determine type without previous balance
-                            # Default to treating the amount as shown (positive = credit, negative would be debit)
-                            # This will be corrected by subsequent balance changes
+                            # Default to credit
                             transaction_type = 'credit'
-                            amount = abs(amount_gtq)
                         
                         previous_balance = current_balance_gtq
                         
                         print(f"  Transaction Type: {transaction_type}")
                         print(f"  Final Amount: {amount}")
                         
-                        # Set account name based on spouse status
-                        account_name = "Industrial USD 9384 (Spouse)" if self.is_spouse else "Industrial USD 9384"
+                        # Set account name
+                        account_name = "Industrial USD 9384"
                         
                         transaction = {
                             'Date': date,

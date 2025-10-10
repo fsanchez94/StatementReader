@@ -82,23 +82,24 @@ class GyTCreditParser(BaseParser):
                     try:
                         # Parse amount
                         original_value = float(amount_str.replace(',', ''))
-                        # Make amount negative if currency has minus sign
+
+                        # Determine transaction type based on currency sign
+                        # Currency with minus sign indicates a debit
                         if currency_code.startswith('-'):
-                            original_value = -original_value
-                            
-                        # Convert USD to GTQ if necessary
-                        amount = original_value * 7.8 if original_currency == 'USD' else original_value
-                        
-                        # Determine transaction type based on amount sign
-                        transaction_type = 'credit' if amount >= 0 else 'debit'
-                        
-                        print(f"Found {transaction_type} transaction: {amount} GTQ (original: {original_value} {original_currency})")
+                            transaction_type = 'debit'
+                        else:
+                            transaction_type = 'credit'
+
+                        # Convert USD to GTQ if necessary (always use positive amounts)
+                        amount = abs(original_value) * 7.8 if original_currency == 'USD' else abs(original_value)
+
+                        print(f"Found {transaction_type} transaction: {amount} GTQ (original: {abs(original_value)} {original_currency})")
                     except ValueError:
                         print(f"Error parsing amount: {amount_str}")
                         continue
                     
-                    # Set account name based on spouse status
-                    account_name = "GyT 5978 (Spouse)" if self.is_spouse else "GyT 5978"
+                    # Set account name
+                    account_name = "GyT 5978"
                     
                     transaction = {
                         'Date': date,
@@ -108,7 +109,7 @@ class GyTCreditParser(BaseParser):
                         'Transaction Type': transaction_type,
                         'Category': '',
                         'Account Name': account_name,
-                        'Original Value': original_value,
+                        'Original Value': abs(original_value),
                         'Original Currency': original_currency
                     }
                     
