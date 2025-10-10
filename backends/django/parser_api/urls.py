@@ -8,6 +8,8 @@ urlpatterns = [
     path('download/<uuid:session_id>/', views.download_file, name='download_file'),
     path('cleanup/<uuid:session_id>/', views.cleanup_session, name='cleanup_session'),
     path('parser-types/', views.get_parser_types, name='get_parser_types'),
+    path('detect-parser/<uuid:session_id>/', views.detect_parser_types, name='detect_parser_types'),
+    path('update-parsers/<uuid:session_id>/', views.update_parser_selections, name='update_parser_selections'),
     
     # New categorization endpoints
     path('categories/', views.get_categories, name='get_categories'),

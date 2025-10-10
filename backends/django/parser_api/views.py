@@ -37,7 +37,7 @@ def save_transactions_to_db(transactions, session, uploaded_file):
                 amount=transaction_data.get('Amount', 0),
                 transaction_type=transaction_data.get('Transaction Type', ''),
                 account_name=transaction_data.get('Account Name', ''),
-                account_holder=uploaded_file.account_holder,
+                account_holder='default',
                 bank_type=uploaded_file.bank_type,
                 account_type=uploaded_file.account_type,
             )
@@ -88,35 +88,73 @@ def auto_categorize_transaction(transaction):
             break
 
 
-def detect_parser_type(text_content):
+def detect_parser_type(text_content, filename=None):
     """
-    Auto-detect bank and account type from PDF text content
+    Auto-detect bank and account type from PDF text content and filename
     Returns: (bank_type, account_type)
     """
+    filename_lower = filename.lower() if filename else ''
+    
+    # PRIMARY: Exact filename pattern matching (highest priority)
+    filename_patterns = [
+        ('gyt credit', ('gyt', 'credit')),
+        ('bi checking gtq', ('industrial', 'checking')),
+        ('bi checking usd', ('industrial', 'usd_checking')),
+        ('bi credit gtq', ('industrial', 'credit')),
+        ('bi credit usd', ('industrial', 'credit_usd')),
+        ('bam credit', ('bam', 'credit')),
+    ]
+    
+    for pattern, (bank_type, account_type) in filename_patterns:
+        if pattern in filename_lower:
+            return (bank_type, account_type)
+    
+    # SECONDARY: Fallback to content + filename analysis
     text_lower = text_content.lower()
+    combined_content = text_lower + ' ' + filename_lower
+    
+    # Enhanced detection patterns with filename support
     
     # Banco Industrial detection
-    if 'banco industrial' in text_lower or 'industrial' in text_lower:
-        if 'tarjeta de credito' in text_lower or 'credit card' in text_lower:
+    industrial_keywords = ['banco industrial', 'industrial', 'bi']
+    if any(keyword in combined_content for keyword in industrial_keywords):
+        
+        # Credit card detection
+        credit_keywords = ['tarjeta de credito', 'credit card', 'tarjeta', 'credit', 'tc', 'credito']
+        if any(keyword in combined_content for keyword in credit_keywords):
             # Check for USD
-            if '$' in text_content or 'usd' in text_lower or 'dolar' in text_lower:
+            usd_keywords = ['$', 'usd', 'dolar', 'dollar', 'dolares']
+            if any(keyword in combined_content for keyword in usd_keywords):
                 return ('industrial', 'credit_usd')
             return ('industrial', 'credit')
-        elif 'cuenta corriente' in text_lower or 'checking' in text_lower:
+        
+        # Checking account detection
+        checking_keywords = ['cuenta corriente', 'checking', 'corriente', 'monetaria', 'ahorro']
+        if any(keyword in combined_content for keyword in checking_keywords):
             # Check for USD
-            if '$' in text_content or 'usd' in text_lower or 'dolar' in text_lower:
+            usd_keywords = ['$', 'usd', 'dolar', 'dollar', 'dolares']
+            if any(keyword in combined_content for keyword in usd_keywords):
                 return ('industrial', 'usd_checking')
             return ('industrial', 'checking')
+        
+        # Default to checking if Industrial but no specific type found
+        # Check for USD in this case too
+        usd_keywords = ['$', 'usd', 'dolar', 'dollar', 'dolares']
+        if any(keyword in combined_content for keyword in usd_keywords):
+            return ('industrial', 'usd_checking')
+        return ('industrial', 'checking')
     
     # BAM detection
-    elif 'bam' in text_lower or 'banco agromercantil' in text_lower:
-        if 'tarjeta' in text_lower or 'credit' in text_lower:
-            return ('bam', 'credit')
+    bam_keywords = ['bam', 'banco agromercantil', 'agromercantil']
+    if any(keyword in combined_content for keyword in bam_keywords):
+        # BAM typically only has credit cards in our system
+        return ('bam', 'credit')
     
     # GyT detection  
-    elif 'gyt' in text_lower or 'g&t' in text_lower or 'gyp' in text_lower:
-        if 'tarjeta' in text_lower or 'credit' in text_lower:
-            return ('gyt', 'credit')
+    gyt_keywords = ['gyt', 'g&t', 'gyp', 'g y t', 'continental']
+    if any(keyword in combined_content for keyword in gyt_keywords):
+        # GyT typically only has credit cards in our system
+        return ('gyt', 'credit')
     
     return (None, None)
 
@@ -142,17 +180,14 @@ def upload_files(request):
     if not files:
         return Response({'error': 'No files provided'}, status=status.HTTP_400_BAD_REQUEST)
     
-    # Get parser selections and account holders from request
+    # Get parser selections from request
     parsers_data = request.POST.get('parsers', '{}')
-    account_holders_data = request.POST.get('account_holders', '{}')
     
     try:
         import json
         parsers = json.loads(parsers_data) if parsers_data else {}
-        account_holders = json.loads(account_holders_data) if account_holders_data else {}
     except json.JSONDecodeError:
         parsers = {}
-        account_holders = {}
     
     session = ProcessingSession.objects.create(
         total_files=len(files),
@@ -171,7 +206,6 @@ def upload_files(request):
         
         # Get parser info for this file
         parser_info = parsers.get(file.name, {})
-        account_holder = account_holders.get(file.name, 'husband')
         
         uploaded_file = UploadedFile.objects.create(
             session=session,
@@ -179,7 +213,7 @@ def upload_files(request):
             file_path=str(file_path),
             bank_type=parser_info.get('bank', ''),
             account_type=parser_info.get('account', ''),
-            account_holder=account_holder
+            account_holder='default'  # Set default value since we're removing this functionality
         )
         uploaded_files.append(uploaded_file)
     
@@ -188,6 +222,29 @@ def upload_files(request):
     
     serializer = ProcessingSessionSerializer(session)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+def update_parser_selections(request, session_id):
+    """Update parser selections for uploaded files in a session"""
+    try:
+        session = ProcessingSession.objects.get(session_id=session_id)
+    except ProcessingSession.DoesNotExist:
+        return Response({'error': 'Session not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    parsers_data = request.data.get('parsers', {})
+    print(f"Updating parser selections for session {session_id}: {parsers_data}")
+    
+    # Update parser info for each file
+    for uploaded_file in session.files.all():
+        parser_info = parsers_data.get(uploaded_file.filename, {})
+        if parser_info:
+            uploaded_file.bank_type = parser_info.get('bank', '')
+            uploaded_file.account_type = parser_info.get('account', '')
+            uploaded_file.save()
+            print(f"Updated {uploaded_file.filename}: {uploaded_file.bank_type} {uploaded_file.account_type}")
+    
+    return Response({'message': 'Parser selections updated'})
 
 
 @api_view(['POST'])
@@ -228,24 +285,37 @@ def process_files(request, session_id):
                 continue
             
             # Get parser info from uploaded file record
+            print(f"Processing file: {uploaded_file.filename}")
+            print(f"Bank type: {uploaded_file.bank_type}, Account type: {uploaded_file.account_type}")
+            
             if not uploaded_file.bank_type or not uploaded_file.account_type:
                 uploaded_file.status = 'error'
                 uploaded_file.error_message = 'No parser type specified for this file'
                 uploaded_file.save()
+                print(f"Skipping {uploaded_file.filename} - no parser type specified")
                 continue
                 
             parser = ParserFactory.get_parser(
                 bank_type=uploaded_file.bank_type,
                 account_type=uploaded_file.account_type,
                 pdf_path=uploaded_file.file_path,
-                is_spouse=(uploaded_file.account_holder == 'spouse')
+                is_spouse=False  # Always False since we're removing spouse functionality
             )
             
+            print(f"Extracting data from {uploaded_file.filename} using {uploaded_file.bank_type} {uploaded_file.account_type} parser...")
             transactions = parser.extract_data()
+            print(f"Extracted {len(transactions) if transactions else 0} transactions from {uploaded_file.filename}")
+            
             if transactions:
+                # Update Account Name to include filename
+                for transaction in transactions:
+                    original_account_name = transaction.get('Account Name', '')
+                    transaction['Account Name'] = f"{original_account_name} - {uploaded_file.filename}"
+                
                 # Save transactions to database
                 saved_transactions = save_transactions_to_db(transactions, session, uploaded_file)
                 all_transactions.extend(transactions)  # Keep for CSV export
+                print(f"Added {len(transactions)} transactions to total (now {len(all_transactions)})")
                 
                 uploaded_file.status = 'completed'
                 uploaded_file.processed_at = datetime.now()
@@ -283,6 +353,8 @@ def process_files(request, session_id):
                 'error': str(e)
             })
     
+    print(f"Total transactions collected: {len(all_transactions)}")
+    
     if all_transactions:
         output_filename = f"all_transactions_{session_id}_{datetime.now().strftime('%Y%m%d')}.csv"
         output_path = settings.TEMP_OUTPUT_DIR / output_filename
@@ -293,8 +365,10 @@ def process_files(request, session_id):
         
         session.output_file = output_filename
         session.status = 'completed'
+        print(f"Processing completed successfully. Output file: {output_filename}")
     else:
         session.status = 'error'
+        print("No transactions were extracted from any files")
     
     session.save()
     
@@ -360,6 +434,70 @@ def cleanup_session(request, session_id):
         
     except ProcessingSession.DoesNotExist:
         return Response({'error': 'Session not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+def detect_parser_types(request, session_id):
+    """Auto-detect parser types for uploaded files in a session"""
+    try:
+        session = ProcessingSession.objects.get(session_id=session_id)
+    except ProcessingSession.DoesNotExist:
+        return Response({'error': 'Session not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    pdf_processor = PDFProcessor()
+    results = {}
+    
+    for uploaded_file in session.files.all():
+        try:
+            # Extract text from PDF
+            text_content = pdf_processor.process(uploaded_file.file_path)
+            if not text_content.strip():
+                results[uploaded_file.filename] = {
+                    'suggested': None,
+                    'confidence': 0,
+                    'error': 'No text content extracted from PDF'
+                }
+                continue
+            
+            # Detect parser type (pass filename for enhanced detection)
+            bank_type, account_type = detect_parser_type(text_content, uploaded_file.filename)
+            
+            if bank_type and account_type:
+                # Find matching parser info
+                parser_id = f"{bank_type}_{account_type}"
+                parser_labels = {
+                    "industrial_checking": "BI Checking GTQ",
+                    "industrial_usd_checking": "BI Checking USD", 
+                    "industrial_credit": "BI Credit GTQ",
+                    "industrial_credit_usd": "BI Credit USD",
+                    "gyt_credit": "GyT Credit",
+                    "bam_credit": "BAM Credit"
+                }
+                
+                results[uploaded_file.filename] = {
+                    'suggested': {
+                        'bank': bank_type,
+                        'account': account_type,
+                        'label': parser_labels.get(parser_id, f"{bank_type.title()} {account_type.replace('_', ' ').title()}")
+                    },
+                    'confidence': 0.8,  # High confidence for keyword-based detection
+                    'error': None
+                }
+            else:
+                results[uploaded_file.filename] = {
+                    'suggested': None,
+                    'confidence': 0,
+                    'error': 'Could not detect bank or account type from PDF content'
+                }
+                
+        except Exception as e:
+            results[uploaded_file.filename] = {
+                'suggested': None,
+                'confidence': 0,
+                'error': str(e)
+            }
+    
+    return Response({'results': results})
 
 
 @api_view(['GET'])

@@ -74,24 +74,38 @@ function App() {
 
   const handleFilesUploaded = async (sessionId) => {
     try {
+      console.log('Starting file processing for session:', sessionId);
       setCurrentJob({ id: sessionId, status: 'uploaded' });
+      setProcessing(true);
       setError(null);
       
       // Start processing
+      setCurrentJob(prev => ({ ...prev, status: 'processing' }));
+      console.log('Calling processSession API...');
       const result = await apiService.processSession(sessionId);
+      console.log('Process result:', result);
+      
+      setProcessing(false);
       
       if (result.status === 'completed') {
+        console.log('Processing completed successfully');
         setCurrentJob(prev => ({
           ...prev,
           status: 'completed',
           results: result.files,
-          outputFiles: [{ filename: result.output_file }],
-          totalTransactions: 0
+          outputFiles: result.output_file ? [{ filename: result.output_file }] : [],
+          totalTransactions: result.files ? result.files.length : 0
         }));
+      } else {
+        console.log('Processing completed but status is:', result.status);
+        setError(`Processing completed but status is: ${result.status}`);
+        setCurrentJob(prev => ({ ...prev, status: 'error' }));
       }
     } catch (err) {
+      setProcessing(false);
       setError(`Failed to process files: ${err.message}`);
-      console.error(err);
+      setCurrentJob(prev => ({ ...prev, status: 'error' }));
+      console.error('Processing error:', err);
     }
   };
 

@@ -15,7 +15,7 @@ class ApiService {
     return response.data;
   }
 
-  async uploadFiles(files, parserSelections, accountHolders) {
+  async uploadFiles(files, parserSelections) {
     const formData = new FormData();
     
     files.forEach(file => {
@@ -24,10 +24,6 @@ class ApiService {
     
     if (parserSelections) {
       formData.append('parsers', JSON.stringify(parserSelections));
-    }
-    
-    if (accountHolders) {
-      formData.append('account_holders', JSON.stringify(accountHolders));
     }
     
     const response = await this.client.post('/upload/', formData, {
@@ -66,8 +62,30 @@ class ApiService {
     this._createDownloadLink(response.data, filename);
   }
 
+  async detectParserTypes(sessionId) {
+    const response = await this.client.post(`/detect-parser/${sessionId}/`);
+    return response.data;
+  }
+
+  async updateParserSelections(sessionId, parserSelections) {
+    const response = await this.client.post(`/update-parsers/${sessionId}/`, {
+      parsers: parserSelections
+    });
+    return response.data;
+  }
+
   async cleanupSession(sessionId) {
     await this.client.delete(`/cleanup/${sessionId}/`);
+  }
+
+  async getAvailableFiles() {
+    // Fallback method - not implemented in backend yet
+    return { files: [] };
+  }
+
+  async downloadFileDirect(filename) {
+    // Fallback method - not implemented in backend yet
+    console.warn('Direct file download not implemented');
   }
 
   _createDownloadLink(data, filename) {

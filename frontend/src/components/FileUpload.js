@@ -17,22 +17,28 @@ import {
   Chip,
   Grid,
   Alert,
-  LinearProgress
+  LinearProgress,
+  Tooltip,
+  CircularProgress
 } from '@mui/material';
 import {
   CloudUpload,
   Delete,
   PictureAsPdf,
-  Assignment
+  Assignment,
+  AutoAwesome,
+  CheckCircle
 } from '@mui/icons-material';
 import { apiService } from '../services/api';
 
 const FileUpload = ({ parserTypes, onFilesUploaded }) => {
   const [files, setFiles] = useState([]);
   const [parserSelections, setParserSelections] = useState({});
-  const [accountHolders, setAccountHolders] = useState({});
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [autoDetecting, setAutoDetecting] = useState(false);
+  const [autoSuggestions, setAutoSuggestions] = useState({});
+  const [sessionId, setSessionId] = useState(null);
 
   const onDrop = useCallback((acceptedFiles) => {
     const pdfFiles = acceptedFiles.filter(file => 
@@ -67,12 +73,6 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
       return updated;
     });
     
-    // Remove account holder selection for this file
-    setAccountHolders(prev => {
-      const updated = { ...prev };
-      delete updated[fileToRemove.name];
-      return updated;
-    });
   };
 
   const handleParserChange = (filename, parserId) => {
@@ -82,30 +82,75 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
       [filename]: {
         bank: parser.bank,
         account: parser.account,
-        label: parser.label
+        label: parser.label,
+        isAutoSuggested: false
       }
     }));
   };
 
-  const handleAccountHolderChange = (filename, holder) => {
-    setAccountHolders(prev => ({
-      ...prev,
-      [filename]: holder
-    }));
-  };
 
   const canUpload = () => {
     if (files.length === 0) return false;
     
-    // Check that all files have parser and account holder selections
+    // Check that all files have parser selections
     return files.every(file => 
-      parserSelections[file.name] && accountHolders[file.name]
+      parserSelections[file.name]
     );
+  };
+
+  const handleAutoDetect = async () => {
+    if (files.length === 0) {
+      setError('Please add files first');
+      return;
+    }
+
+    // If no session exists, upload files first
+    let currentSessionId = sessionId;
+    if (!currentSessionId) {
+      setAutoDetecting(true);
+      setError(null);
+      
+      try {
+        const uploadResult = await apiService.uploadFiles(files, {});
+        currentSessionId = uploadResult.session_id;
+        setSessionId(currentSessionId);
+      } catch (err) {
+        setError(`Upload failed: ${err.message}`);
+        setAutoDetecting(false);
+        return;
+      }
+    }
+
+    setAutoDetecting(true);
+    setError(null);
+
+    try {
+      const result = await apiService.detectParserTypes(currentSessionId);
+      setAutoSuggestions(result.results);
+      
+      // Apply suggestions to parser selections
+      const newSelections = { ...parserSelections };
+      Object.keys(result.results).forEach(filename => {
+        const suggestion = result.results[filename];
+        if (suggestion.suggested) {
+          newSelections[filename] = {
+            ...suggestion.suggested,
+            isAutoSuggested: true
+          };
+        }
+      });
+      setParserSelections(newSelections);
+    } catch (err) {
+      setError(`Auto-detection failed: ${err.message}`);
+      console.error(err);
+    } finally {
+      setAutoDetecting(false);
+    }
   };
 
   const handleUpload = async () => {
     if (!canUpload()) {
-      setError('Please select parser and account holder for all files');
+      setError('Please select parser for all files');
       return;
     }
 
@@ -113,8 +158,16 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
     setError(null);
 
     try {
-      const result = await apiService.uploadFiles(files, parserSelections, accountHolders);
-      onFilesUploaded(result.session_id);
+      if (sessionId) {
+        // Files already uploaded, update parser selections and proceed to processing
+        await apiService.updateParserSelections(sessionId, parserSelections);
+        onFilesUploaded(sessionId);
+      } else {
+        // Upload files with configurations
+        const result = await apiService.uploadFiles(files, parserSelections);
+        setSessionId(result.session_id);
+        onFilesUploaded(result.session_id);
+      }
     } catch (err) {
       setError(`Upload failed: ${err.message}`);
       console.error(err);
@@ -196,13 +249,28 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
       {/* Parser Selection */}
       {files.length > 0 && (
         <Paper elevation={1} sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            <Assignment sx={{ mr: 1, verticalAlign: 'middle' }} />
-            Configure Parsers
-          </Typography>
-          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            Select the appropriate bank and account type for each file
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box>
+              <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+                <Assignment sx={{ mr: 1, verticalAlign: 'middle' }} />
+                Configure Parsers
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Select the appropriate bank and account type for each file
+              </Typography>
+            </Box>
+            <Tooltip title="Automatically detect bank and account types from PDF content">
+              <Button
+                variant="outlined"
+                startIcon={autoDetecting ? <CircularProgress size={16} /> : <AutoAwesome />}
+                onClick={handleAutoDetect}
+                disabled={files.length === 0 || autoDetecting}
+                size="small"
+              >
+                {autoDetecting ? 'Detecting...' : 'Auto-Detect'}
+              </Button>
+            </Tooltip>
+          </Box>
 
           <Grid container spacing={2}>
             {files.map((file, index) => (
@@ -213,7 +281,7 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
                   </Typography>
                   
                   <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} md={5}>
+                    <Grid item xs={12} md={8}>
                       <FormControl fullWidth size="small">
                         <InputLabel>Bank & Account Type</InputLabel>
                         <Select
@@ -233,35 +301,27 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
                       </FormControl>
                     </Grid>
                     
-                    <Grid item xs={12} md={3}>
-                      <FormControl fullWidth size="small">
-                        <InputLabel>Account Holder</InputLabel>
-                        <Select
-                          value={accountHolders[file.name] || ''}
-                          label="Account Holder"
-                          onChange={(e) => handleAccountHolderChange(file.name, e.target.value)}
-                        >
-                          <MenuItem value="husband">Husband</MenuItem>
-                          <MenuItem value="spouse">Spouse</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    
                     <Grid item xs={12} md={4}>
-                      {parserSelections[file.name] && accountHolders[file.name] && (
+                      {parserSelections[file.name] && (
                         <Box>
                           <Chip 
                             label={parserSelections[file.name].label}
-                            color="primary"
+                            color={parserSelections[file.name].isAutoSuggested ? "success" : "primary"}
                             size="small"
                             sx={{ mr: 1 }}
+                            icon={parserSelections[file.name].isAutoSuggested ? <CheckCircle /> : null}
                           />
-                          <Chip 
-                            label={accountHolders[file.name]}
-                            color="secondary"
-                            size="small"
-                          />
+                          {parserSelections[file.name].isAutoSuggested && (
+                            <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 0.5 }}>
+                              Auto-detected
+                            </Typography>
+                          )}
                         </Box>
+                      )}
+                      {autoSuggestions[file.name]?.error && (
+                        <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+                          {autoSuggestions[file.name].error}
+                        </Typography>
                       )}
                     </Grid>
                   </Grid>
@@ -283,8 +343,13 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
             disabled={!canUpload() || uploading}
             sx={{ minWidth: 200 }}
           >
-            {uploading ? 'Uploading...' : `Process ${files.length} File${files.length > 1 ? 's' : ''}`}
+            {uploading ? 'Uploading...' : sessionId ? 'Start Processing' : `Upload ${files.length} File${files.length > 1 ? 's' : ''}`}
           </Button>
+          {sessionId && (
+            <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+              Files uploaded successfully. Configure parsers and click "Start Processing" to begin.
+            </Typography>
+          )}
         </Box>
       )}
     </Box>
