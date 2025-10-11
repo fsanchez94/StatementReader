@@ -78,6 +78,24 @@ class ApiService {
     await this.client.delete(`/cleanup/${sessionId}/`);
   }
 
+  async getTransactions(params = {}) {
+    const { limit = 50, offset = 0, category, uncategorized } = params;
+    const queryParams = new URLSearchParams({
+      limit: limit.toString(),
+      offset: offset.toString(),
+    });
+
+    if (category) {
+      queryParams.append('category', category);
+    }
+    if (uncategorized) {
+      queryParams.append('uncategorized', 'true');
+    }
+
+    const response = await this.client.get(`/transactions/?${queryParams}`);
+    return response.data;
+  }
+
   async getAvailableFiles() {
     // Fallback method - not implemented in backend yet
     return { files: [] };

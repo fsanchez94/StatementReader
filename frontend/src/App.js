@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import {
   Container,
   AppBar,
@@ -6,11 +7,15 @@ import {
   Typography,
   Box,
   Paper,
-  Alert
+  Alert,
+  Button
 } from '@mui/material';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import ListAltIcon from '@mui/icons-material/ListAlt';
 import FileUpload from './components/FileUpload';
 import ProcessingStatus from './components/ProcessingStatus';
 import Results from './components/Results';
+import TransactionsList from './components/TransactionsList';
 import { apiService } from './services/api';
 import { socketService } from './services/socket';
 
@@ -116,52 +121,76 @@ function App() {
   };
 
   return (
-    <div className="App">
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            PDF Bank Statement Parser
-          </Typography>
-        </Toolbar>
-      </AppBar>
-
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-
-        {!currentJob ? (
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom>
-              Upload Bank Statements
+    <Router>
+      <div className="App">
+        <AppBar position="static">
+          <Toolbar>
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+              PDF Bank Statement Parser
             </Typography>
-            <Typography variant="body1" color="textSecondary" paragraph>
-              Upload your PDF bank statements and select the appropriate parser for each file.
-              The system supports multiple Guatemalan banks including Banco Industrial, BAM, and GyT.
-            </Typography>
-            <FileUpload 
-              parserTypes={parserTypes}
-              onFilesUploaded={handleFilesUploaded}
-            />
-          </Paper>
-        ) : (
-          <Box>
-            {(processing || currentJob.status === 'processing') && (
-              <ProcessingStatus job={currentJob} />
-            )}
-            
-            {currentJob.status === 'completed' && (
-              <Results 
-                job={currentJob}
-                onNewUpload={handleNewUpload}
-              />
-            )}
-          </Box>
-        )}
-      </Container>
-    </div>
+            <Button
+              color="inherit"
+              component={Link}
+              to="/"
+              startIcon={<UploadFileIcon />}
+              sx={{ mr: 2 }}
+            >
+              Upload
+            </Button>
+            <Button
+              color="inherit"
+              component={Link}
+              to="/transactions"
+              startIcon={<ListAltIcon />}
+            >
+              Transactions
+            </Button>
+          </Toolbar>
+        </AppBar>
+
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          )}
+
+          <Routes>
+            <Route path="/" element={
+              !currentJob ? (
+                <Paper elevation={3} sx={{ p: 3 }}>
+                  <Typography variant="h4" gutterBottom>
+                    Upload Bank Statements
+                  </Typography>
+                  <Typography variant="body1" color="textSecondary" paragraph>
+                    Upload your PDF bank statements and select the appropriate parser for each file.
+                    The system supports multiple Guatemalan banks including Banco Industrial, BAM, and GyT.
+                  </Typography>
+                  <FileUpload
+                    parserTypes={parserTypes}
+                    onFilesUploaded={handleFilesUploaded}
+                  />
+                </Paper>
+              ) : (
+                <Box>
+                  {(processing || currentJob.status === 'processing') && (
+                    <ProcessingStatus job={currentJob} />
+                  )}
+
+                  {currentJob.status === 'completed' && (
+                    <Results
+                      job={currentJob}
+                      onNewUpload={handleNewUpload}
+                    />
+                  )}
+                </Box>
+              )
+            } />
+            <Route path="/transactions" element={<TransactionsList />} />
+          </Routes>
+        </Container>
+      </div>
+    </Router>
   );
 }
 
