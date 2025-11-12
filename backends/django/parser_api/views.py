@@ -159,6 +159,120 @@ def detect_parser_type(text_content, filename=None):
     return (None, None)
 
 
+def validate_csv_file(file_path):
+    """
+    Validate that CSV file has the expected Banco Industrial format
+    Raises ValueError if validation fails
+    """
+    import pandas as pd
+    import re
+
+    try:
+        # Try multiple encodings
+        encodings = ['utf-8', 'utf-16-be', 'utf-16-le', 'latin-1', 'cp1252']
+        lines = None
+
+        for encoding in encodings:
+            try:
+                with open(file_path, 'r', encoding=encoding, errors='replace') as f:
+                    test_lines = f.readlines()
+                    # Check if readable
+                    if any('Fecha' in line or 'fecha' in line.lower() for line in test_lines[:15]):
+                        lines = test_lines
+                        print(f"Validating CSV with encoding: {encoding}")
+                        break
+            except:
+                continue
+
+        if not lines:
+            raise ValueError("Could not read CSV file with any known encoding")
+
+        if len(lines) < 10:
+            raise ValueError("CSV file is too short - expected at least 10 lines of header + data")
+
+        # Find header line (should contain Fecha, TT, Descripción)
+        header_found = False
+        for line in lines[:15]:
+            if 'Fecha' in line and 'TT' in line and 'Descripci' in line:
+                header_found = True
+                # Validate key columns
+                if 'Debe' not in line or 'Haber' not in line:
+                    raise ValueError("Missing required columns: Debe or Haber")
+                break
+
+        if not header_found:
+            raise ValueError("Invalid CSV format: Could not find header row with 'Fecha,TT,Descripción'")
+
+        # Check for date range line
+        date_range_found = False
+        for line in lines[:10]:
+            if re.search(r'Del\s+\d{2}/\d{2}/\d{4}\s+al\s+\d{2}/\d{2}/\d{4}', line):
+                date_range_found = True
+                break
+
+        if not date_range_found:
+            raise ValueError("Invalid CSV format: Missing date range line (Del DD/MM/YYYY al DD/MM/YYYY)")
+
+        return True
+
+    except Exception as e:
+        raise ValueError(f"CSV validation failed: {str(e)}")
+
+
+def detect_csv_bank_type(file_path):
+    """
+    Auto-detect bank and account type from CSV file structure and content
+    Returns: (bank_type, account_type)
+    """
+    try:
+        # Try multiple encodings (CSV files can be UTF-8, UTF-16, etc.)
+        encodings = ['utf-8', 'utf-16-be', 'utf-16-le', 'latin-1', 'cp1252']
+        content = None
+
+        for encoding in encodings:
+            try:
+                with open(file_path, 'r', encoding=encoding, errors='replace') as f:
+                    test_content = f.read().lower()
+                    # Check if this encoding produces readable content
+                    if 'fecha' in test_content and 'tt' in test_content:
+                        content = test_content
+                        print(f"Successfully read CSV with encoding: {encoding}")
+                        break
+            except:
+                continue
+
+        if not content:
+            print("Could not read CSV file with any known encoding")
+            return (None, None)
+
+        # Check if it's Banco Industrial format
+        # BI CSVs have specific header structure with TT, Debe, Haber columns
+        has_bi_structure = all(keyword in content for keyword in ['fecha', 'tt', 'debe', 'haber', 'saldo'])
+
+        if not has_bi_structure:
+            return (None, None)
+
+        # Detect currency - USD vs GTQ
+        # Look for USD indicators in column headers or content
+        usd_indicators = ['debe (usd)', 'haber (usd)', 'debe ($)', 'haber ($)', 'saldo (usd)', 'saldo ($)']
+        gtq_indicators = ['debe (q.)', 'haber (q.)', 'saldo (q.)']
+
+        is_usd = any(indicator in content for indicator in usd_indicators)
+        is_gtq = any(indicator in content for indicator in gtq_indicators)
+
+        # BI CSV formats are only for checking accounts (not credit cards)
+        if is_usd:
+            return ('industrial', 'usd_checking')
+        elif is_gtq or has_bi_structure:  # Default to GTQ if BI structure found
+            return ('industrial', 'checking')
+
+        return (None, None)
+
+    except Exception as e:
+        print(f"Error detecting CSV type: {e}")
+        return (None, None)
+
+
 def send_websocket_update(session_id, data):
     if channel_layer:
         try:
@@ -203,14 +317,25 @@ def upload_files(request):
         with open(file_path, 'wb+') as destination:
             for chunk in file.chunks():
                 destination.write(chunk)
-        
+
+        # Detect file type from extension
+        file_extension = file.name.lower().split('.')[-1]
+        if file_extension == 'pdf':
+            file_type = 'pdf'
+        elif file_extension == 'csv':
+            file_type = 'csv'
+        else:
+            # Default to pdf for backwards compatibility
+            file_type = 'pdf'
+
         # Get parser info for this file
         parser_info = parsers.get(file.name, {})
-        
+
         uploaded_file = UploadedFile.objects.create(
             session=session,
             filename=file.name,
             file_path=str(file_path),
+            file_type=file_type,
             bank_type=parser_info.get('bank', ''),
             account_type=parser_info.get('account', ''),
             account_holder='default'  # Set default value since we're removing this functionality
@@ -276,31 +401,71 @@ def process_files(request, session_id):
                 'filename': uploaded_file.filename,
                 'message': f'Processing {uploaded_file.filename}...'
             })
-            
-            text_content = pdf_processor.process(uploaded_file.file_path)
-            if not text_content.strip():
-                uploaded_file.status = 'error'
-                uploaded_file.error_message = 'No text content extracted from PDF'
-                uploaded_file.save()
-                continue
-            
+
             # Get parser info from uploaded file record
             print(f"Processing file: {uploaded_file.filename}")
+            print(f"File type: {uploaded_file.file_type}")
             print(f"Bank type: {uploaded_file.bank_type}, Account type: {uploaded_file.account_type}")
-            
-            if not uploaded_file.bank_type or not uploaded_file.account_type:
-                uploaded_file.status = 'error'
-                uploaded_file.error_message = 'No parser type specified for this file'
-                uploaded_file.save()
-                print(f"Skipping {uploaded_file.filename} - no parser type specified")
-                continue
-                
-            parser = ParserFactory.get_parser(
-                bank_type=uploaded_file.bank_type,
-                account_type=uploaded_file.account_type,
-                pdf_path=uploaded_file.file_path,
-                is_spouse=False  # Always False since we're removing spouse functionality
-            )
+
+            # Branch processing based on file type
+            if uploaded_file.file_type == 'csv':
+                # CSV processing path
+                try:
+                    # Validate CSV format
+                    validate_csv_file(uploaded_file.file_path)
+                    print(f"CSV file {uploaded_file.filename} validated successfully")
+                except ValueError as ve:
+                    uploaded_file.status = 'error'
+                    uploaded_file.error_message = f'CSV validation failed: {str(ve)}'
+                    uploaded_file.save()
+                    print(f"CSV validation error for {uploaded_file.filename}: {str(ve)}")
+                    continue
+
+                # Auto-detect if not specified
+                if not uploaded_file.bank_type or not uploaded_file.account_type:
+                    detected_bank, detected_account = detect_csv_bank_type(uploaded_file.file_path)
+                    if detected_bank and detected_account:
+                        uploaded_file.bank_type = detected_bank
+                        uploaded_file.account_type = detected_account
+                        uploaded_file.save()
+                        print(f"Auto-detected CSV parser: {detected_bank} {detected_account}")
+                    else:
+                        uploaded_file.status = 'error'
+                        uploaded_file.error_message = 'Could not auto-detect parser type for CSV file'
+                        uploaded_file.save()
+                        print(f"Skipping {uploaded_file.filename} - could not detect parser type")
+                        continue
+
+                # Get CSV parser
+                parser = ParserFactory.get_csv_parser(
+                    bank_type=uploaded_file.bank_type,
+                    account_type=uploaded_file.account_type,
+                    csv_path=uploaded_file.file_path,
+                    is_spouse=False
+                )
+
+            else:
+                # PDF processing path (existing logic)
+                text_content = pdf_processor.process(uploaded_file.file_path)
+                if not text_content.strip():
+                    uploaded_file.status = 'error'
+                    uploaded_file.error_message = 'No text content extracted from PDF'
+                    uploaded_file.save()
+                    continue
+
+                if not uploaded_file.bank_type or not uploaded_file.account_type:
+                    uploaded_file.status = 'error'
+                    uploaded_file.error_message = 'No parser type specified for this file'
+                    uploaded_file.save()
+                    print(f"Skipping {uploaded_file.filename} - no parser type specified")
+                    continue
+
+                parser = ParserFactory.get_parser(
+                    bank_type=uploaded_file.bank_type,
+                    account_type=uploaded_file.account_type,
+                    pdf_path=uploaded_file.file_path,
+                    is_spouse=False  # Always False since we're removing spouse functionality
+                )
             
             print(f"Extracting data from {uploaded_file.filename} using {uploaded_file.bank_type} {uploaded_file.account_type} parser...")
             transactions = parser.extract_data()
@@ -449,18 +614,32 @@ def detect_parser_types(request, session_id):
     
     for uploaded_file in session.files.all():
         try:
-            # Extract text from PDF
-            text_content = pdf_processor.process(uploaded_file.file_path)
-            if not text_content.strip():
-                results[uploaded_file.filename] = {
-                    'suggested': None,
-                    'confidence': 0,
-                    'error': 'No text content extracted from PDF'
-                }
-                continue
-            
-            # Detect parser type (pass filename for enhanced detection)
-            bank_type, account_type = detect_parser_type(text_content, uploaded_file.filename)
+            # Branch based on file type
+            if uploaded_file.file_type == 'csv':
+                # CSV auto-detection
+                bank_type, account_type = detect_csv_bank_type(uploaded_file.file_path)
+
+                if not bank_type or not account_type:
+                    results[uploaded_file.filename] = {
+                        'suggested': None,
+                        'confidence': 0,
+                        'error': 'Could not detect parser type from CSV structure'
+                    }
+                    continue
+            else:
+                # PDF auto-detection (existing logic)
+                # Extract text from PDF
+                text_content = pdf_processor.process(uploaded_file.file_path)
+                if not text_content.strip():
+                    results[uploaded_file.filename] = {
+                        'suggested': None,
+                        'confidence': 0,
+                        'error': 'No text content extracted from PDF'
+                    }
+                    continue
+
+                # Detect parser type (pass filename for enhanced detection)
+                bank_type, account_type = detect_parser_type(text_content, uploaded_file.filename)
             
             if bank_type and account_type:
                 # Find matching parser info

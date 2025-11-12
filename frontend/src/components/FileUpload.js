@@ -41,23 +41,27 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
   const [sessionId, setSessionId] = useState(null);
 
   const onDrop = useCallback((acceptedFiles) => {
-    const pdfFiles = acceptedFiles.filter(file => 
-      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
-    );
-    
-    if (pdfFiles.length !== acceptedFiles.length) {
-      setError('Only PDF files are accepted');
+    const validFiles = acceptedFiles.filter(file => {
+      const name = file.name.toLowerCase();
+      const isPdf = file.type === 'application/pdf' || name.endsWith('.pdf');
+      const isCsv = file.type === 'text/csv' || name.endsWith('.csv');
+      return isPdf || isCsv;
+    });
+
+    if (validFiles.length !== acceptedFiles.length) {
+      setError('Solo se aceptan archivos PDF y CSV');
       return;
     }
 
-    setFiles(prev => [...prev, ...pdfFiles]);
+    setFiles(prev => [...prev, ...validFiles]);
     setError(null);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'application/pdf': ['.pdf']
+      'application/pdf': ['.pdf'],
+      'text/csv': ['.csv']
     },
     multiple: true
   });
@@ -100,7 +104,7 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
 
   const handleAutoDetect = async () => {
     if (files.length === 0) {
-      setError('Please add files first');
+      setError('Por favor agrega archivos primero');
       return;
     }
 
@@ -115,7 +119,7 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
         currentSessionId = uploadResult.session_id;
         setSessionId(currentSessionId);
       } catch (err) {
-        setError(`Upload failed: ${err.message}`);
+        setError(`Error al subir: ${err.message}`);
         setAutoDetecting(false);
         return;
       }
@@ -141,7 +145,7 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
       });
       setParserSelections(newSelections);
     } catch (err) {
-      setError(`Auto-detection failed: ${err.message}`);
+      setError(`Error en auto-detección: ${err.message}`);
       console.error(err);
     } finally {
       setAutoDetecting(false);
@@ -150,7 +154,7 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
 
   const handleUpload = async () => {
     if (!canUpload()) {
-      setError('Please select parser for all files');
+      setError('Por favor selecciona procesador para todos los archivos');
       return;
     }
 
@@ -206,13 +210,13 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
         <input {...getInputProps()} />
         <CloudUpload sx={{ fontSize: 48, color: 'grey.400', mb: 2 }} />
         <Typography variant="h6" gutterBottom>
-          {isDragActive ? 'Drop PDF files here' : 'Drag & drop PDF files here'}
+          {isDragActive ? 'Suelta archivos PDF o CSV aquí' : 'Arrastra archivos PDF o CSV aquí'}
         </Typography>
         <Typography variant="body2" color="textSecondary">
-          or click to browse files
+          o haz clic para buscar archivos
         </Typography>
         <Button variant="outlined" sx={{ mt: 2 }}>
-          Browse Files
+          Buscar Archivos
         </Button>
       </Paper>
 
@@ -220,28 +224,44 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
       {files.length > 0 && (
         <Paper elevation={1} sx={{ p: 2, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Selected Files ({files.length})
+            Archivos Seleccionados ({files.length})
           </Typography>
           
           <List>
-            {files.map((file, index) => (
-              <ListItem key={index} divider>
-                <PictureAsPdf sx={{ mr: 2, color: 'error.main' }} />
-                <ListItemText
-                  primary={file.name}
-                  secondary={`${(file.size / 1024 / 1024).toFixed(2)} MB`}
-                />
-                <ListItemSecondaryAction>
-                  <IconButton 
-                    edge="end" 
-                    onClick={() => removeFile(index)}
-                    color="error"
-                  >
-                    <Delete />
-                  </IconButton>
-                </ListItemSecondaryAction>
-              </ListItem>
-            ))}
+            {files.map((file, index) => {
+              const isCSV = file.name.toLowerCase().endsWith('.csv');
+              const FileIcon = isCSV ? Assignment : PictureAsPdf;
+              const iconColor = isCSV ? 'success.main' : 'error.main';
+
+              return (
+                <ListItem key={index} divider>
+                  <FileIcon sx={{ mr: 2, color: iconColor }} />
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {file.name}
+                        <Chip
+                          label={isCSV ? 'CSV' : 'PDF'}
+                          size="small"
+                          color={isCSV ? 'success' : 'error'}
+                          variant="outlined"
+                        />
+                      </Box>
+                    }
+                    secondary={`${(file.size / 1024 / 1024).toFixed(2)} MB`}
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton
+                      edge="end"
+                      onClick={() => removeFile(index)}
+                      color="error"
+                    >
+                      <Delete />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              );
+            })}
           </List>
         </Paper>
       )}
@@ -253,13 +273,13 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
             <Box>
               <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
                 <Assignment sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Configure Parsers
+                Configurar Procesadores
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                Select the appropriate bank and account type for each file
+                Selecciona el banco y tipo de cuenta apropiado para cada archivo
               </Typography>
             </Box>
-            <Tooltip title="Automatically detect bank and account types from PDF content">
+            <Tooltip title="Detectar automáticamente el banco y tipo de cuenta del contenido del PDF">
               <Button
                 variant="outlined"
                 startIcon={autoDetecting ? <CircularProgress size={16} /> : <AutoAwesome />}
@@ -267,7 +287,7 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
                 disabled={files.length === 0 || autoDetecting}
                 size="small"
               >
-                {autoDetecting ? 'Detecting...' : 'Auto-Detect'}
+                {autoDetecting ? 'Detectando...' : 'Auto-Detectar'}
               </Button>
             </Tooltip>
           </Box>
@@ -283,10 +303,10 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
                   <Grid container spacing={2} alignItems="center">
                     <Grid item xs={12} md={8}>
                       <FormControl fullWidth size="small">
-                        <InputLabel>Bank & Account Type</InputLabel>
+                        <InputLabel>Banco y Tipo de Cuenta</InputLabel>
                         <Select
                           value={parserSelections[file.name]?.label || ''}
-                          label="Bank & Account Type"
+                          label="Banco y Tipo de Cuenta"
                           onChange={(e) => {
                             const parser = parserTypes.find(p => p.label === e.target.value);
                             if (parser) handleParserChange(file.name, parser.id);
@@ -313,7 +333,7 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
                           />
                           {parserSelections[file.name].isAutoSuggested && (
                             <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 0.5 }}>
-                              Auto-detected
+                              Auto-detectado
                             </Typography>
                           )}
                         </Box>
@@ -343,11 +363,11 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
             disabled={!canUpload() || uploading}
             sx={{ minWidth: 200 }}
           >
-            {uploading ? 'Uploading...' : sessionId ? 'Start Processing' : `Upload ${files.length} File${files.length > 1 ? 's' : ''}`}
+            {uploading ? 'Subiendo...' : sessionId ? 'Iniciar Procesamiento' : `Subir ${files.length} Archivo${files.length > 1 ? 's' : ''}`}
           </Button>
           {sessionId && (
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-              Files uploaded successfully. Configure parsers and click "Start Processing" to begin.
+              Archivos subidos exitosamente. Configura los procesadores y haz clic en "Iniciar Procesamiento" para comenzar.
             </Typography>
           )}
         </Box>

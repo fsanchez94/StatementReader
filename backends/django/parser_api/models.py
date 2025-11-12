@@ -18,6 +18,7 @@ class UploadedFile(models.Model):
     session = models.ForeignKey(ProcessingSession, on_delete=models.CASCADE, related_name='files')
     filename = models.CharField(max_length=255)
     file_path = models.CharField(max_length=500)
+    file_type = models.CharField(max_length=10, choices=[('pdf', 'PDF'), ('csv', 'CSV')], default='pdf')
     status = models.CharField(max_length=20, default='pending')
     error_message = models.TextField(blank=True)
     processed_at = models.DateTimeField(null=True, blank=True)
