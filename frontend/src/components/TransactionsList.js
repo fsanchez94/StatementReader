@@ -14,6 +14,16 @@ import {
   Button,
   Chip
 } from '@mui/material';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 import { apiService } from '../services/api';
 
 function TransactionsList() {
@@ -48,7 +58,7 @@ function TransactionsList() {
       setOffset(newOffset);
       setLoading(false);
     } catch (err) {
-      setError(`Failed to load transactions: ${err.message}`);
+      setError(`Error al cargar transacciones: ${err.message}`);
       setLoading(false);
       console.error('Error loading transactions:', err);
     }
@@ -60,7 +70,7 @@ function TransactionsList() {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString('es-GT', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -68,10 +78,44 @@ function TransactionsList() {
   };
 
   const formatAmount = (amount) => {
-    return parseFloat(amount).toLocaleString('en-US', {
+    return parseFloat(amount).toLocaleString('es-GT', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     });
+  };
+
+  const getMonthlyDebitData = () => {
+    // Filter only debit transactions
+    const debits = transactions.filter(t => t.transaction_type.toLowerCase() === 'debit');
+
+    // Group by month
+    const monthlyTotals = {};
+
+    debits.forEach(transaction => {
+      const date = new Date(transaction.date);
+      const monthYear = date.toLocaleDateString('es-GT', {
+        month: 'short',
+        year: 'numeric'
+      });
+
+      if (!monthlyTotals[monthYear]) {
+        monthlyTotals[monthYear] = {
+          month: monthYear,
+          total: 0,
+          date: date // Keep for sorting
+        };
+      }
+
+      monthlyTotals[monthYear].total += parseFloat(transaction.amount);
+    });
+
+    // Convert to array and sort by date
+    return Object.values(monthlyTotals)
+      .sort((a, b) => a.date - b.date)
+      .map(({ month, total }) => ({
+        month,
+        total: parseFloat(total.toFixed(2))
+      }));
   };
 
   const getTransactionTypeColor = (type) => {
@@ -86,16 +130,70 @@ function TransactionsList() {
     );
   }
 
+  const monthlyDebitData = getMonthlyDebitData();
+
   return (
     <Box>
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
         <Typography variant="h4" gutterBottom>
-          All Transactions
+          Todas las Transacciones
         </Typography>
         <Typography variant="body1" color="textSecondary" paragraph>
-          View all processed transactions from your bank statements.
+          Ver todas las transacciones procesadas de tus estados de cuenta.
         </Typography>
       </Paper>
+
+      {/* Monthly Debit Bar Chart */}
+      {transactions.length > 0 && monthlyDebitData.length > 0 && (
+        <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h5" gutterBottom>
+            Gastos Mensuales (Débitos)
+          </Typography>
+          <Typography variant="body2" color="textSecondary" paragraph>
+            Suma total de débitos agrupados por mes
+          </Typography>
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart
+              data={monthlyDebitData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="month"
+                angle={-45}
+                textAnchor="end"
+                height={100}
+                style={{ fontSize: '0.875rem' }}
+              />
+              <YAxis
+                style={{ fontSize: '0.875rem' }}
+                tickFormatter={(value) =>
+                  value.toLocaleString('es-GT', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                  })
+                }
+              />
+              <Tooltip
+                formatter={(value) =>
+                  value.toLocaleString('es-GT', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })
+                }
+                labelStyle={{ fontWeight: 'bold' }}
+              />
+              <Legend />
+              <Bar
+                dataKey="total"
+                name="Total Débitos"
+                fill="#d32f2f"
+                radius={[8, 8, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </Paper>
+      )}
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -106,7 +204,7 @@ function TransactionsList() {
       {transactions.length === 0 && !loading ? (
         <Paper elevation={3} sx={{ p: 3 }}>
           <Typography variant="body1" color="textSecondary" align="center">
-            No transactions found. Upload and process some bank statements to see transactions here.
+            No se encontraron transacciones. Sube y procesa estados de cuenta para ver transacciones aquí.
           </Typography>
         </Paper>
       ) : (
@@ -115,10 +213,10 @@ function TransactionsList() {
             <Table>
               <TableHead>
                 <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Description</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }} align="center">Type</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }} align="right">Amount</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Fecha</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Descripción</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }} align="center">Tipo</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }} align="right">Monto</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -157,14 +255,14 @@ function TransactionsList() {
                 onClick={handleLoadMore}
                 disabled={loading}
               >
-                {loading ? <CircularProgress size={24} /> : 'Load More'}
+                {loading ? <CircularProgress size={24} /> : 'Cargar Más'}
               </Button>
             </Box>
           )}
 
           <Box mt={2} textAlign="center">
             <Typography variant="body2" color="textSecondary">
-              Showing {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+              Mostrando {transactions.length} {transactions.length !== 1 ? 'transacciones' : 'transacción'}
             </Typography>
           </Box>
         </>
