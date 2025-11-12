@@ -36,3 +36,17 @@ Thumbs.db
 # Build outputs
 frontend/build/
 frontend/dist/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+tests/htmlcov/
+
+# CI/CD artifacts
+.github/workflows/*.log
+junit/
+test-results/

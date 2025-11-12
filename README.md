@@ -1,5 +1,10 @@
 # PDF Bank Statement Parser
 
+[![Python CI](https://github.com/fsanchez94/StatementReader/actions/workflows/python-ci.yml/badge.svg)](https://github.com/fsanchez94/StatementReader/actions/workflows/python-ci.yml)
+[![Frontend CI](https://github.com/fsanchez94/StatementReader/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/fsanchez94/StatementReader/actions/workflows/frontend-ci.yml)
+[![Security Scanning](https://github.com/fsanchez94/StatementReader/actions/workflows/security.yml/badge.svg)](https://github.com/fsanchez94/StatementReader/actions/workflows/security.yml)
+[![codecov](https://codecov.io/gh/fsanchez94/StatementReader/graph/badge.svg)](https://codecov.io/gh/fsanchez94/StatementReader)
+
 A tool to convert bank statement PDFs into structured CSV files. Now includes both a **web interface** and command-line tools.
 
 ## ✨ New Web Interface Available!

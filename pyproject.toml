@@ -1,0 +1,32 @@
+[tool.black]
+line-length = 100
+target-version = ['py312']
+extend-exclude = '''
+/(
+  # directories
+  \.git
+  | \.pytest_cache
+  | __pycache__
+  | build
+  | dist
+  | node_modules
+  | frontend
+  | temp
+  | migrations
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip_glob = [
+    "*/migrations/*",
+    "node_modules/*",
+    "frontend/*",
+    "temp/*",
+    ".venv/*",
+    "venv/*"
+]
+known_first_party = ["src", "parsers", "utils"]
+known_django = ["django", "rest_framework"]
+sections = ["FUTURE", "STDLIB", "DJANGO", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
