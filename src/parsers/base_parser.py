@@ -5,7 +5,7 @@ from datetime import datetime, date
 class BaseParser(ABC):
     def __init__(self, pdf_path, is_spouse=False):
         self.pdf_path = pdf_path
-        self.is_spouse = is_spouse
+        # is_spouse parameter kept for backwards compatibility but not used
         
     @abstractmethod
     def extract_data(self):

@@ -26,7 +26,21 @@
       "Bash(npm start:*)",
       "Bash(taskkill:*)",
       "Bash(git worktree:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Bash(/bashes)",
+      "Bash(tasklist)",
+      "Bash(findstr:*)",
+      "Bash(git push:*)",
+      "Bash(npm install:*)",
+      "Bash(git log:*)",
+      "Bash(node:*)",
+      "Bash(nul)",
+      "Bash(git remote:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(cat:*)",
+      "Bash(netstat:*)"
     ],
     "deny": []
   }

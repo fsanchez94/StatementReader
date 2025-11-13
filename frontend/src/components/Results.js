@@ -9,7 +9,6 @@ import {
   ListItemIcon,
   ListItemText,
   ListItemSecondaryAction,
-  IconButton,
   Divider,
   Grid,
   Card,
@@ -23,7 +22,6 @@ import {
   Download,
   Error,
   Assessment,
-  PictureAsPdf,
   TableChart,
   Refresh
 } from '@mui/icons-material';
@@ -95,7 +93,7 @@ const Results = ({ job, onNewUpload }) => {
                 {totalTransactions}
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                Total Transactions
+                Transacciones Totales
               </Typography>
             </CardContent>
           </Card>
@@ -109,7 +107,7 @@ const Results = ({ job, onNewUpload }) => {
                 {successfulFiles.length}
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                Processed Successfully
+                Procesados Exitosamente
               </Typography>
             </CardContent>
           </Card>
@@ -123,7 +121,7 @@ const Results = ({ job, onNewUpload }) => {
                 {failedFiles.length}
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                Failed to Process
+                Fallidos al Procesar
               </Typography>
             </CardContent>
           </Card>
@@ -137,7 +135,7 @@ const Results = ({ job, onNewUpload }) => {
                 {job.outputFiles?.length || 0}
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                Output Files
+                Archivos de Salida
               </Typography>
             </CardContent>
           </Card>
@@ -148,22 +146,22 @@ const Results = ({ job, onNewUpload }) => {
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h5">
-            Processing Results
+            Resultados del Procesamiento
           </Typography>
           <Button
             variant="outlined"
             startIcon={<Refresh />}
             onClick={onNewUpload}
           >
-            Process More Files
+            Procesar Más Archivos
           </Button>
         </Box>
 
         {/* Error Alert */}
         {failedFiles.length > 0 && (
           <Alert severity="warning" sx={{ mb: 3 }}>
-            {failedFiles.length} file{failedFiles.length > 1 ? 's' : ''} failed to process. 
-            Check the file list below for details.
+            {failedFiles.length} archivo{failedFiles.length > 1 ? 's' : ''} no se {failedFiles.length > 1 ? 'pudieron' : 'pudo'} procesar.
+            Revisa la lista de archivos abajo para más detalles.
           </Alert>
         )}
 
@@ -171,7 +169,7 @@ const Results = ({ job, onNewUpload }) => {
         {job.results && job.results.length > 0 && (
           <Box sx={{ mb: 3 }}>
             <Typography variant="h6" gutterBottom>
-              File Processing Details
+              Detalles del Procesamiento de Archivos
             </Typography>
             <List>
               {job.results.map((file, index) => (
@@ -193,14 +191,14 @@ const Results = ({ job, onNewUpload }) => {
                       </Box>
                     }
                     secondary={
-                      file.error_message 
+                      file.error_message
                         ? `Error: ${file.error_message}`
-                        : file.status === 'completed' ? 'Successfully processed' : 'Processing...'
+                        : file.status === 'completed' ? 'Procesado exitosamente' : 'Procesando...'
                     }
                   />
                   <ListItemSecondaryAction>
                     <Chip
-                      label={file.status === 'error' ? 'Failed' : 'Success'}
+                      label={file.status === 'error' ? 'Fallido' : 'Éxito'}
                       color={getFileStatusColor(file)}
                       size="small"
                     />
@@ -216,10 +214,10 @@ const Results = ({ job, onNewUpload }) => {
         {/* Download Section */}
         <Box>
           <Typography variant="h6" gutterBottom>
-            Download Results
+            Descargar Resultados
           </Typography>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-            Download the processed CSV files containing your transaction data
+            Descarga los archivos CSV procesados que contienen tus datos de transacciones
           </Typography>
 
           {job?.outputFiles && job.outputFiles.length > 0 ? (
@@ -240,7 +238,7 @@ const Results = ({ job, onNewUpload }) => {
                       startIcon={<Download />}
                       onClick={() => handleDownload(file.filename)}
                     >
-                      Download
+                      Descargar
                     </Button>
                   </ListItemSecondaryAction>
                 </ListItem>
@@ -249,12 +247,12 @@ const Results = ({ job, onNewUpload }) => {
           ) : loadingFiles ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <CircularProgress size={20} />
-              <Typography>Loading available files...</Typography>
+              <Typography>Cargando archivos disponibles...</Typography>
             </Box>
           ) : availableFiles.length > 0 ? (
             <Box>
               <Alert severity="info" sx={{ mb: 2 }}>
-                Job data not available, showing all generated files:
+                Datos del trabajo no disponibles, mostrando todos los archivos generados:
               </Alert>
               <List>
                 {availableFiles.map((file, index) => (
@@ -273,7 +271,7 @@ const Results = ({ job, onNewUpload }) => {
                         startIcon={<Download />}
                         onClick={() => handleDownload(file.filename)}
                       >
-                        Download
+                        Descargar
                       </Button>
                     </ListItemSecondaryAction>
                   </ListItem>
@@ -282,7 +280,7 @@ const Results = ({ job, onNewUpload }) => {
             </Box>
           ) : (
             <Alert severity="info">
-              No output files were generated. This may occur if no transactions were found in the processed files.
+              No se generaron archivos de salida. Esto puede ocurrir si no se encontraron transacciones en los archivos procesados.
             </Alert>
           )}
         </Box>

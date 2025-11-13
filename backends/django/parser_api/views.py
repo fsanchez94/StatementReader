@@ -11,8 +11,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from .models import ProcessingSession, UploadedFile, Transaction, Category, TransactionPattern
-from .serializers import ProcessingSessionSerializer
+from .models import ProcessingSession, UploadedFile, Transaction, Category, TransactionPattern, MerchantPattern, AccountHolder
+from .serializers import ProcessingSessionSerializer, AccountHolderSerializer
 
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / 'src'))
 from parsers.parser_factory import ParserFactory
@@ -38,18 +38,23 @@ def save_transactions_to_db(transactions, session, uploaded_file):
                 transaction_type=transaction_data.get('Transaction Type', ''),
                 account_name=transaction_data.get('Account Name', ''),
                 account_holder='default',
+                account_holder_fk=uploaded_file.account_holder_fk,  # Copy account holder from file
                 bank_type=uploaded_file.bank_type,
                 account_type=uploaded_file.account_type,
             )
-            
+
             # Try to auto-categorize the transaction
             auto_categorize_transaction(transaction)
+
+            # Try to auto-normalize merchant name
+            auto_normalize_merchant(transaction)
+
             saved_transactions.append(transaction)
-            
+
         except Exception as e:
             print(f"Error saving transaction: {e}")
             continue
-    
+
     return saved_transactions
 
 
@@ -58,14 +63,14 @@ def auto_categorize_transaction(transaction):
     Automatically categorize a transaction based on existing patterns
     """
     description = transaction.description.lower()
-    
+
     # Find matching patterns ordered by confidence
     patterns = TransactionPattern.objects.filter(is_active=True).order_by('-confidence')
-    
+
     for pattern in patterns:
         pattern_text = pattern.pattern.lower()
         match_found = False
-        
+
         if pattern.match_type == 'exact':
             match_found = description == pattern_text
         elif pattern.match_type == 'contains':
@@ -80,10 +85,44 @@ def auto_categorize_transaction(transaction):
                 match_found = bool(re.search(pattern_text, description))
             except re.error:
                 continue
-        
+
         if match_found:
             transaction.category = pattern.category
             transaction.category_confidence = pattern.confidence
+            transaction.save()
+            break
+
+
+def auto_normalize_merchant(transaction):
+    """
+    Automatically normalize merchant name based on existing patterns
+    """
+    description = transaction.description.lower()
+
+    # Find matching patterns ordered by confidence
+    patterns = MerchantPattern.objects.filter(is_active=True).order_by('-confidence')
+
+    for pattern in patterns:
+        pattern_text = pattern.pattern.lower()
+        match_found = False
+
+        if pattern.match_type == 'exact':
+            match_found = description == pattern_text
+        elif pattern.match_type == 'contains':
+            match_found = pattern_text in description
+        elif pattern.match_type == 'starts_with':
+            match_found = description.startswith(pattern_text)
+        elif pattern.match_type == 'ends_with':
+            match_found = description.endswith(pattern_text)
+        elif pattern.match_type == 'regex':
+            import re
+            try:
+                match_found = bool(re.search(pattern_text, description))
+            except re.error:
+                continue
+
+        if match_found:
+            transaction.merchant_name = pattern.normalized_name
             transaction.save()
             break
 
@@ -296,13 +335,16 @@ def upload_files(request):
     
     # Get parser selections from request
     parsers_data = request.POST.get('parsers', '{}')
-    
+    account_holders_data = request.POST.get('account_holders', '{}')
+
     try:
         import json
         parsers = json.loads(parsers_data) if parsers_data else {}
+        account_holder_map = json.loads(account_holders_data) if account_holders_data else {}
     except json.JSONDecodeError:
         parsers = {}
-    
+        account_holder_map = {}
+
     session = ProcessingSession.objects.create(
         total_files=len(files),
         status='uploading'
@@ -331,6 +373,15 @@ def upload_files(request):
         # Get parser info for this file
         parser_info = parsers.get(file.name, {})
 
+        # Get account holder for this file
+        account_holder_id = account_holder_map.get(file.name)
+        account_holder_instance = None
+        if account_holder_id:
+            try:
+                account_holder_instance = AccountHolder.objects.get(id=account_holder_id)
+            except AccountHolder.DoesNotExist:
+                pass
+
         uploaded_file = UploadedFile.objects.create(
             session=session,
             filename=file.name,
@@ -338,7 +389,8 @@ def upload_files(request):
             file_type=file_type,
             bank_type=parser_info.get('bank', ''),
             account_type=parser_info.get('account', ''),
-            account_holder='default'  # Set default value since we're removing this functionality
+            account_holder='default',  # Legacy field
+            account_holder_fk=account_holder_instance
         )
         uploaded_files.append(uploaded_file)
     
@@ -772,14 +824,14 @@ def categorize_transaction(request, transaction_id):
     try:
         transaction = Transaction.objects.get(id=transaction_id)
         category_id = request.data.get('category_id')
-        
+
         if category_id:
             category = Category.objects.get(id=category_id)
             transaction.category = category
             transaction.manually_categorized = True
             transaction.category_confidence = 1.0
             transaction.save()
-            
+
             return Response({'message': 'Transaction categorized successfully'})
         else:
             # Remove category
@@ -787,10 +839,131 @@ def categorize_transaction(request, transaction_id):
             transaction.manually_categorized = False
             transaction.category_confidence = 0.0
             transaction.save()
-            
+
             return Response({'message': 'Transaction category removed'})
-            
+
     except Transaction.DoesNotExist:
         return Response({'error': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
     except Category.DoesNotExist:
         return Response({'error': 'Category not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+# Account Holder Management APIs
+
+@api_view(['GET', 'POST'])
+def account_holders(request):
+    """List all account holders or create a new one"""
+    if request.method == 'GET':
+        holders = AccountHolder.objects.all().order_by('name')
+        serializer = AccountHolderSerializer(holders, many=True)
+        return Response({'account_holders': serializer.data})
+
+    elif request.method == 'POST':
+        serializer = AccountHolderSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def account_holder_detail(request, holder_id):
+    """Get, update, or delete a specific account holder"""
+    try:
+        holder = AccountHolder.objects.get(id=holder_id)
+    except AccountHolder.DoesNotExist:
+        return Response({'error': 'Account holder not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = AccountHolderSerializer(holder)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        # Check if trying to remove is_default from the only default holder
+        if not request.data.get('is_default', True) and holder.is_default:
+            default_count = AccountHolder.objects.filter(is_default=True).count()
+            if default_count <= 1:
+                return Response(
+                    {'error': 'Cannot remove default status. At least one default account holder must exist.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        serializer = AccountHolderSerializer(holder, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        # Set all references to NULL as per user's choice
+        UploadedFile.objects.filter(account_holder_fk=holder).update(account_holder_fk=None)
+        Transaction.objects.filter(account_holder_fk=holder).update(account_holder_fk=None)
+
+        # If deleting the default holder, promote another one
+        if holder.is_default:
+            other_holder = AccountHolder.objects.exclude(id=holder.id).first()
+            if other_holder:
+                other_holder.is_default = True
+                other_holder.save()
+
+        holder.delete()
+        return Response({'message': 'Account holder deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+
+
+# File Management APIs
+
+@api_view(['POST'])
+def bulk_assign_holder(request):
+    """Bulk assign account holder to multiple files"""
+    file_ids = request.data.get('file_ids', [])
+    holder_id = request.data.get('holder_id')
+
+    if not file_ids:
+        return Response({'error': 'No file IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Validate holder_id (can be None to unassign)
+    holder = None
+    if holder_id:
+        try:
+            holder = AccountHolder.objects.get(id=holder_id)
+        except AccountHolder.DoesNotExist:
+            return Response({'error': 'Account holder not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Update files
+    updated_count = UploadedFile.objects.filter(id__in=file_ids).update(account_holder_fk=holder)
+
+    # Also update related transactions
+    Transaction.objects.filter(uploaded_file_id__in=file_ids).update(account_holder_fk=holder)
+
+    return Response({
+        'message': f'Successfully assigned account holder to {updated_count} files',
+        'updated_count': updated_count
+    })
+
+
+@api_view(['POST'])
+def bulk_delete_files(request):
+    """Bulk delete multiple uploaded files"""
+    file_ids = request.data.get('file_ids', [])
+
+    if not file_ids:
+        return Response({'error': 'No file IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Delete files (transactions will be cascade deleted)
+    files = UploadedFile.objects.filter(id__in=file_ids)
+    deleted_count = files.count()
+
+    # Delete physical files
+    for uploaded_file in files:
+        try:
+            if os.path.exists(uploaded_file.file_path):
+                os.remove(uploaded_file.file_path)
+        except Exception as e:
+            print(f"Error deleting physical file {uploaded_file.file_path}: {e}")
+
+    files.delete()
+
+    return Response({
+        'message': f'Successfully deleted {deleted_count} files',
+        'deleted_count': deleted_count
+    })

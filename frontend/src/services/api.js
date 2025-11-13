@@ -15,23 +15,27 @@ class ApiService {
     return response.data;
   }
 
-  async uploadFiles(files, parserSelections) {
+  async uploadFiles(files, parserSelections, accountHolderAssignments) {
     const formData = new FormData();
-    
+
     files.forEach(file => {
       formData.append('files', file);
     });
-    
+
     if (parserSelections) {
       formData.append('parsers', JSON.stringify(parserSelections));
     }
-    
+
+    if (accountHolderAssignments) {
+      formData.append('account_holders', JSON.stringify(accountHolderAssignments));
+    }
+
     const response = await this.client.post('/upload/', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-    
+
     return response.data;
   }
 
@@ -101,9 +105,48 @@ class ApiService {
     return { files: [] };
   }
 
-  async downloadFileDirect(filename) {
+  async downloadFileDirect(_filename) {
     // Fallback method - not implemented in backend yet
     console.warn('Direct file download not implemented');
+  }
+
+  // Account Holder Management
+
+  async getAccountHolders() {
+    const response = await this.client.get('/account-holders/');
+    return response.data;
+  }
+
+  async createAccountHolder(holderData) {
+    const response = await this.client.post('/account-holders/', holderData);
+    return response.data;
+  }
+
+  async updateAccountHolder(holderId, holderData) {
+    const response = await this.client.put(`/account-holders/${holderId}/`, holderData);
+    return response.data;
+  }
+
+  async deleteAccountHolder(holderId) {
+    const response = await this.client.delete(`/account-holders/${holderId}/`);
+    return response.data;
+  }
+
+  // File Bulk Operations
+
+  async bulkAssignHolder(fileIds, holderId) {
+    const response = await this.client.post('/files/bulk-assign-holder/', {
+      file_ids: fileIds,
+      holder_id: holderId
+    });
+    return response.data;
+  }
+
+  async bulkDeleteFiles(fileIds) {
+    const response = await this.client.post('/files/bulk-delete/', {
+      file_ids: fileIds
+    });
+    return response.data;
   }
 
   _createDownloadLink(data, filename) {

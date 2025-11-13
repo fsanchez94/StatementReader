@@ -13,7 +13,6 @@ import {
 } from '@mui/material';
 import {
   Schedule,
-  PlayArrow,
   CheckCircle,
   PictureAsPdf
 } from '@mui/icons-material';
@@ -33,13 +32,13 @@ const ProcessingStatus = ({ job }) => {
   const getStatusText = (status) => {
     switch (status) {
       case 'uploaded':
-        return 'Files uploaded, starting processing...';
+        return 'Archivos subidos, iniciando procesamiento...';
       case 'processing':
-        return 'Processing files...';
+        return 'Procesando archivos...';
       case 'completed':
-        return 'Processing completed!';
+        return '¡Procesamiento completado!';
       default:
-        return 'Unknown status';
+        return 'Estado desconocido';
     }
   };
 
@@ -60,7 +59,7 @@ const ProcessingStatus = ({ job }) => {
         {getStatusIcon(job?.status)}
         <Box sx={{ ml: 2, flexGrow: 1 }}>
           <Typography variant="h5">
-            Processing Bank Statements
+            Procesando Estados de Cuenta
           </Typography>
           <Typography variant="body1" color="textSecondary">
             {getStatusText(job?.status)}
@@ -78,7 +77,7 @@ const ProcessingStatus = ({ job }) => {
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant="body2">
-              Progress
+              Progreso
             </Typography>
             <Typography variant="body2" color="textSecondary">
               {job.progress}%
@@ -96,7 +95,7 @@ const ProcessingStatus = ({ job }) => {
       {job?.currentFile && (
         <Box sx={{ mb: 3 }}>
           <Typography variant="subtitle2" color="primary" gutterBottom>
-            Currently Processing:
+            Procesando Actualmente:
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <PictureAsPdf sx={{ mr: 1, color: 'error.main' }} />
@@ -111,7 +110,7 @@ const ProcessingStatus = ({ job }) => {
       {job?.files && job.files.length > 0 && (
         <Box>
           <Typography variant="subtitle2" gutterBottom>
-            Files to Process ({job.files.length}):
+            Archivos a Procesar ({job.files.length}):
           </Typography>
           <List dense>
             {job.files.map((file, index) => (
@@ -121,7 +120,7 @@ const ProcessingStatus = ({ job }) => {
                 </ListItemIcon>
                 <ListItemText
                   primary={file.filename}
-                  secondary={`${file.parser?.label || 'Parser not set'} • ${file.account_holder || 'Unknown holder'}`}
+                  secondary={`${file.parser?.label || 'Procesador no configurado'} • ${file.account_holder || 'Titular desconocido'}`}
                 />
               </ListItem>
             ))}
@@ -133,7 +132,7 @@ const ProcessingStatus = ({ job }) => {
       {job?.totalFiles && (
         <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
           <Typography variant="body2" color="textSecondary">
-            Processing {job.processedFiles || 0} of {job.totalFiles} files
+            Procesando {job.processedFiles || 0} de {job.totalFiles} archivos
           </Typography>
         </Box>
       )}

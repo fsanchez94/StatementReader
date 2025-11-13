@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import {
   Box,
@@ -19,15 +19,15 @@ import {
   Alert,
   LinearProgress,
   Tooltip,
-  CircularProgress
+  CircularProgress,
+  Checkbox
 } from '@mui/material';
 import {
   CloudUpload,
   Delete,
   PictureAsPdf,
   Assignment,
-  AutoAwesome,
-  CheckCircle
+  AutoAwesome
 } from '@mui/icons-material';
 import { apiService } from '../services/api';
 
@@ -39,6 +39,26 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
   const [autoDetecting, setAutoDetecting] = useState(false);
   const [autoSuggestions, setAutoSuggestions] = useState({});
   const [sessionId, setSessionId] = useState(null);
+
+  // Multiselect state
+  const [selectedFiles, setSelectedFiles] = useState(new Set());
+  const [accountHolders, setAccountHolders] = useState([]);
+  const [selectedHolder, setSelectedHolder] = useState('');
+  const [fileAccountHolders, setFileAccountHolders] = useState({});
+
+  // Load account holders on mount
+  useEffect(() => {
+    loadAccountHolders();
+  }, []);
+
+  const loadAccountHolders = async () => {
+    try {
+      const data = await apiService.getAccountHolders();
+      setAccountHolders(data.account_holders || []);
+    } catch (err) {
+      console.error('Error loading account holders:', err);
+    }
+  };
 
   const onDrop = useCallback((acceptedFiles) => {
     const validFiles = acceptedFiles.filter(file => {
@@ -69,14 +89,78 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
   const removeFile = (index) => {
     const fileToRemove = files[index];
     setFiles(prev => prev.filter((_, i) => i !== index));
-    
+
     // Remove parser selection for this file
     setParserSelections(prev => {
       const updated = { ...prev };
       delete updated[fileToRemove.name];
       return updated;
     });
-    
+
+    // Remove from selected files if present
+    setSelectedFiles(prev => {
+      const updated = new Set(prev);
+      updated.delete(index);
+      return updated;
+    });
+
+    // Remove account holder assignment
+    setFileAccountHolders(prev => {
+      const updated = { ...prev };
+      delete updated[fileToRemove.name];
+      return updated;
+    });
+  };
+
+  // Multiselect handlers
+  const toggleSelectFile = (index) => {
+    setSelectedFiles(prev => {
+      const updated = new Set(prev);
+      if (updated.has(index)) {
+        updated.delete(index);
+      } else {
+        updated.add(index);
+      }
+      return updated;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedFiles.size === files.length) {
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFiles(new Set(files.map((_, index) => index)));
+    }
+  };
+
+  // Account holder handlers
+  const handleApplyAccountHolder = () => {
+    if (!selectedHolder) return;
+
+    const holder = accountHolders.find(h => h.id === selectedHolder);
+    if (!holder) return;
+
+    // Apply holder to all selected files
+    setFileAccountHolders(prev => {
+      const updated = { ...prev };
+      selectedFiles.forEach(index => {
+        const fileName = files[index].name;
+        updated[fileName] = holder;
+      });
+      return updated;
+    });
+
+    // Clear selections after applying
+    setSelectedFiles(new Set());
+    setSelectedHolder('');
+  };
+
+  const handleRemoveAccountHolder = (filename) => {
+    setFileAccountHolders(prev => {
+      const updated = { ...prev };
+      delete updated[filename];
+      return updated;
+    });
   };
 
   const handleParserChange = (filename, parserId) => {
@@ -167,8 +251,14 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
         await apiService.updateParserSelections(sessionId, parserSelections);
         onFilesUploaded(sessionId);
       } else {
+        // Convert fileAccountHolders to simpler format (filename -> holder_id)
+        const accountHolderMap = {};
+        Object.keys(fileAccountHolders).forEach(filename => {
+          accountHolderMap[filename] = fileAccountHolders[filename].id;
+        });
+
         // Upload files with configurations
-        const result = await apiService.uploadFiles(files, parserSelections);
+        const result = await apiService.uploadFiles(files, parserSelections, accountHolderMap);
         setSessionId(result.session_id);
         onFilesUploaded(result.session_id);
       }
@@ -226,7 +316,7 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
           <Typography variant="h6" gutterBottom>
             Archivos Seleccionados ({files.length})
           </Typography>
-          
+
           <List>
             {files.map((file, index) => {
               const isCSV = file.name.toLowerCase().endsWith('.csv');
@@ -292,16 +382,87 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
             </Tooltip>
           </Box>
 
+          {/* Select All and Bulk Account Holder Assignment */}
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            mb: 2,
+            p: 2,
+            bgcolor: selectedFiles.size > 0 ? 'primary.light' : 'grey.50',
+            borderRadius: 1
+          }}>
+            <Checkbox
+              checked={selectedFiles.size === files.length && files.length > 0}
+              indeterminate={selectedFiles.size > 0 && selectedFiles.size < files.length}
+              onChange={toggleSelectAll}
+            />
+
+            <Typography variant="body2" sx={{ flex: 1 }}>
+              {selectedFiles.size > 0
+                ? `${selectedFiles.size} archivo${selectedFiles.size > 1 ? 's' : ''} seleccionado${selectedFiles.size > 1 ? 's' : ''}`
+                : 'Seleccionar todos'
+              }
+            </Typography>
+
+            {selectedFiles.size > 0 && accountHolders.length > 0 && (
+              <>
+                <FormControl size="small" sx={{ minWidth: 200 }}>
+                  <InputLabel>Asignar Titular</InputLabel>
+                  <Select
+                    value={selectedHolder}
+                    label="Asignar Titular"
+                    onChange={(e) => setSelectedHolder(e.target.value)}
+                  >
+                    <MenuItem value="">
+                      <em>Sin titular</em>
+                    </MenuItem>
+                    {accountHolders.map(holder => (
+                      <MenuItem key={holder.id} value={holder.id}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Chip
+                            label=""
+                            size="small"
+                            sx={{ backgroundColor: holder.color, width: 20, height: 20 }}
+                          />
+                          {holder.name}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleApplyAccountHolder}
+                  disabled={!selectedHolder}
+                >
+                  Aplicar Titular
+                </Button>
+              </>
+            )}
+          </Box>
+
           <Grid container spacing={2}>
             {files.map((file, index) => (
               <Grid item xs={12} key={index}>
                 <Paper variant="outlined" sx={{ p: 2 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    {file.name}
-                  </Typography>
-                  
                   <Grid container spacing={2} alignItems="center">
-                    <Grid item xs={12} md={8}>
+                    {/* LEFT: Checkbox */}
+                    <Grid item xs="auto">
+                      <Checkbox
+                        checked={selectedFiles.has(index)}
+                        onChange={() => toggleSelectFile(index)}
+                      />
+                    </Grid>
+
+                    {/* CENTER: File info and parser picker */}
+                    <Grid item xs>
+                      <Typography variant="subtitle2" gutterBottom>
+                        {file.name}
+                      </Typography>
+
                       <FormControl fullWidth size="small">
                         <InputLabel>Banco y Tipo de Cuenta</InputLabel>
                         <Select
@@ -319,29 +480,32 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
                           ))}
                         </Select>
                       </FormControl>
-                    </Grid>
-                    
-                    <Grid item xs={12} md={4}>
-                      {parserSelections[file.name] && (
-                        <Box>
-                          <Chip 
-                            label={parserSelections[file.name].label}
-                            color={parserSelections[file.name].isAutoSuggested ? "success" : "primary"}
-                            size="small"
-                            sx={{ mr: 1 }}
-                            icon={parserSelections[file.name].isAutoSuggested ? <CheckCircle /> : null}
-                          />
-                          {parserSelections[file.name].isAutoSuggested && (
-                            <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 0.5 }}>
-                              Auto-detectado
-                            </Typography>
-                          )}
-                        </Box>
+
+                      {/* Auto-detected indicator */}
+                      {parserSelections[file.name]?.isAutoSuggested && (
+                        <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 0.5 }}>
+                          Auto-detectado
+                        </Typography>
                       )}
                       {autoSuggestions[file.name]?.error && (
                         <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
                           {autoSuggestions[file.name].error}
                         </Typography>
+                      )}
+                    </Grid>
+
+                    {/* RIGHT: Account holder badge */}
+                    <Grid item xs="auto">
+                      {fileAccountHolders[file.name] && (
+                        <Chip
+                          label={fileAccountHolders[file.name].name}
+                          size="small"
+                          sx={{
+                            backgroundColor: fileAccountHolders[file.name].color,
+                            color: 'white'
+                          }}
+                          onDelete={() => handleRemoveAccountHolder(file.name)}
+                        />
                       )}
                     </Grid>
                   </Grid>
@@ -372,6 +536,7 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
           )}
         </Box>
       )}
+
     </Box>
   );
 };
