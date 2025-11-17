@@ -80,6 +80,19 @@ def import_from_excel(excel_file, confidence=0.8, auto_create_categories=True):
     # Valid match types
     valid_match_types = ['exact', 'contains', 'starts_with', 'ends_with', 'regex']
 
+    # Match type mapping from Excel to system
+    match_type_mapping = {
+        'exact': 'exact',
+        'exact match': 'exact',
+        'contains': 'contains',
+        'starts with': 'starts_with',
+        'starts_with': 'starts_with',
+        'ends with': 'ends_with',
+        'ends_with': 'ends_with',
+        'regex': 'regex',
+        'regular expression': 'regex'
+    }
+
     # Track statistics
     categories_created = 0
     categories_found = 0
@@ -98,7 +111,7 @@ def import_from_excel(excel_file, confidence=0.8, auto_create_categories=True):
         try:
             # Extract data
             pattern = str(row['Description']).strip()
-            match_type = str(row['Match Type']).strip().lower()
+            match_type_raw = str(row['Match Type']).strip().lower()
             category_name = str(row[category_column]).strip()
 
             # Skip empty rows
@@ -112,9 +125,11 @@ def import_from_excel(excel_file, confidence=0.8, auto_create_categories=True):
                 errors.append(f"Row {idx+2}: Empty pattern. Skipped.")
                 continue
 
-            # Validate match type
-            if match_type not in valid_match_types:
-                errors.append(f"Row {idx+2}: Invalid match type '{match_type}' for pattern '{pattern}'. Using 'contains' instead.")
+            # Map match type from Excel format to system format
+            if match_type_raw in match_type_mapping:
+                match_type = match_type_mapping[match_type_raw]
+            else:
+                errors.append(f"Row {idx+2}: Unknown match type '{match_type_raw}' for pattern '{pattern}'. Using 'contains' instead.")
                 match_type = 'contains'
 
             # Get or create category
