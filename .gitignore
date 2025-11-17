@@ -30,6 +30,9 @@ _ul
 *.csv
 !templatesbancos/*.csv
 
+# Template Excel files (user data)
+templatesbancos/*.xlsx
+
 # Database files
 *.sqlite3
 *.db
