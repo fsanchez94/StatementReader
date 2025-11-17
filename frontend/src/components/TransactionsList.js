@@ -134,23 +134,23 @@ function TransactionsList() {
 
   return (
     <Box>
-      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h4" gutterBottom>
-          Todas las Transacciones
+      <Paper elevation={2} sx={{ p: 5, mb: 4, borderRadius: 3 }}>
+        <Typography variant="h3" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+          All Transactions
         </Typography>
-        <Typography variant="body1" color="textSecondary" paragraph>
-          Ver todas las transacciones procesadas de tus estados de cuenta.
+        <Typography variant="body1" color="text.secondary" paragraph sx={{ fontSize: '1.0625rem' }}>
+          View all processed transactions from your bank statements.
         </Typography>
       </Paper>
 
       {/* Monthly Debit Bar Chart */}
       {transactions.length > 0 && monthlyDebitData.length > 0 && (
-        <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h5" gutterBottom>
-            Gastos Mensuales (Débitos)
+        <Paper elevation={2} sx={{ p: 4, mb: 4, borderRadius: 3 }}>
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 1 }}>
+            Monthly Spending
           </Typography>
-          <Typography variant="body2" color="textSecondary" paragraph>
-            Suma total de débitos agrupados por mes
+          <Typography variant="body1" color="text.secondary" paragraph sx={{ mb: 3 }}>
+            Total debits grouped by month
           </Typography>
           <ResponsiveContainer width="100%" height={400}>
             <BarChart
@@ -186,8 +186,8 @@ function TransactionsList() {
               <Legend />
               <Bar
                 dataKey="total"
-                name="Total Débitos"
-                fill="#d32f2f"
+                name="Total Debits"
+                fill="#FF3B30"
                 radius={[8, 8, 0, 0]}
               />
             </BarChart>
@@ -202,45 +202,56 @@ function TransactionsList() {
       )}
 
       {transactions.length === 0 && !loading ? (
-        <Paper elevation={3} sx={{ p: 3 }}>
-          <Typography variant="body1" color="textSecondary" align="center">
-            No se encontraron transacciones. Sube y procesa estados de cuenta para ver transacciones aquí.
+        <Paper elevation={2} sx={{ p: 5, borderRadius: 3 }}>
+          <Typography variant="body1" color="text.secondary" align="center" sx={{ fontSize: '1.0625rem' }}>
+            No transactions found. Upload and process bank statements to view transactions here.
           </Typography>
         </Paper>
       ) : (
         <>
-          <TableContainer component={Paper} elevation={3}>
+          <TableContainer component={Paper} elevation={2} sx={{ borderRadius: 3, overflow: 'hidden' }}>
             <Table>
               <TableHead>
-                <TableRow sx={{ backgroundColor: 'primary.main' }}>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Fecha</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Descripción</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }} align="center">Tipo</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }} align="right">Monto</TableCell>
+                <TableRow sx={{ backgroundColor: 'background.default' }}>
+                  <TableCell sx={{ color: 'text.primary', fontWeight: 600, py: 2 }}>Date</TableCell>
+                  <TableCell sx={{ color: 'text.primary', fontWeight: 600, py: 2 }}>Description</TableCell>
+                  <TableCell sx={{ color: 'text.primary', fontWeight: 600, py: 2 }} align="center">Type</TableCell>
+                  <TableCell sx={{ color: 'text.primary', fontWeight: 600, py: 2 }} align="right">Amount</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {transactions.map((transaction) => (
+                {transactions.map((transaction, index) => (
                   <TableRow
                     key={transaction.id}
-                    hover
-                    sx={{ '&:hover': { backgroundColor: 'action.hover' } }}
+                    sx={{
+                      '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.02)' },
+                      borderBottom: index < transactions.length - 1 ? '1px solid' : 'none',
+                      borderColor: 'divider',
+                      transition: 'background-color 0.2s ease',
+                    }}
                   >
-                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                      {formatDate(transaction.date)}
+                    <TableCell sx={{ whiteSpace: 'nowrap', py: 2.5 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {formatDate(transaction.date)}
+                      </Typography>
                     </TableCell>
-                    <TableCell sx={{ maxWidth: '400px' }}>
-                      {transaction.description}
+                    <TableCell sx={{ maxWidth: '400px', py: 2.5 }}>
+                      <Typography variant="body2">
+                        {transaction.description}
+                      </Typography>
                     </TableCell>
-                    <TableCell align="center">
+                    <TableCell align="center" sx={{ py: 2.5 }}>
                       <Chip
-                        label={transaction.transaction_type.toUpperCase()}
+                        label={transaction.transaction_type}
                         color={getTransactionTypeColor(transaction.transaction_type)}
                         size="small"
+                        sx={{ fontWeight: 600, textTransform: 'capitalize' }}
                       />
                     </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 'medium' }}>
-                      {formatAmount(transaction.amount)}
+                    <TableCell align="right" sx={{ py: 2.5 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {formatAmount(transaction.amount)}
+                      </Typography>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -249,20 +260,24 @@ function TransactionsList() {
           </TableContainer>
 
           {hasMore && (
-            <Box display="flex" justifyContent="center" mt={3}>
+            <Box display="flex" justifyContent="center" mt={4}>
               <Button
                 variant="outlined"
                 onClick={handleLoadMore}
                 disabled={loading}
+                sx={{
+                  px: 4,
+                  py: 1.25,
+                }}
               >
-                {loading ? <CircularProgress size={24} /> : 'Cargar Más'}
+                {loading ? <CircularProgress size={22} /> : 'Load More'}
               </Button>
             </Box>
           )}
 
-          <Box mt={2} textAlign="center">
-            <Typography variant="body2" color="textSecondary">
-              Mostrando {transactions.length} {transactions.length !== 1 ? 'transacciones' : 'transacción'}
+          <Box mt={3} textAlign="center">
+            <Typography variant="body2" color="text.secondary">
+              Showing {transactions.length} {transactions.length !== 1 ? 'transactions' : 'transaction'}
             </Typography>
           </Box>
         </>

@@ -282,69 +282,113 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
       <Paper
         {...getRootProps()}
         sx={{
-          p: 4,
-          border: 2,
-          borderColor: isDragActive ? 'primary.main' : 'grey.300',
-          borderStyle: 'dashed',
-          borderRadius: 2,
+          p: 6,
+          border: '2px dashed',
+          borderColor: isDragActive ? 'primary.main' : 'divider',
+          borderRadius: 3,
           textAlign: 'center',
           cursor: 'pointer',
-          mb: 3,
-          transition: 'border-color 0.3s ease',
+          mb: 4,
+          transition: 'all 0.25s ease',
+          backgroundColor: isDragActive ? 'rgba(0, 122, 255, 0.04)' : 'background.paper',
           '&:hover': {
             borderColor: 'primary.main',
+            backgroundColor: 'rgba(0, 122, 255, 0.02)',
+            transform: 'translateY(-2px)',
           },
         }}
         elevation={0}
       >
         <input {...getInputProps()} />
-        <CloudUpload sx={{ fontSize: 48, color: 'grey.400', mb: 2 }} />
-        <Typography variant="h6" gutterBottom>
-          {isDragActive ? 'Suelta archivos PDF o CSV aquí' : 'Arrastra archivos PDF o CSV aquí'}
+        <CloudUpload
+          sx={{
+            fontSize: 56,
+            color: isDragActive ? 'primary.main' : 'text.secondary',
+            mb: 2.5,
+            transition: 'all 0.25s ease',
+          }}
+        />
+        <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 1 }}>
+          {isDragActive ? 'Drop your files here' : 'Drag and drop your files'}
         </Typography>
-        <Typography variant="body2" color="textSecondary">
-          o haz clic para buscar archivos
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+          or click to browse
         </Typography>
-        <Button variant="outlined" sx={{ mt: 2 }}>
-          Buscar Archivos
+        <Button
+          variant="contained"
+          sx={{
+            px: 4,
+            py: 1.5,
+            fontSize: '1.0625rem',
+          }}
+        >
+          Browse Files
         </Button>
       </Paper>
 
       {/* File List */}
       {files.length > 0 && (
-        <Paper elevation={1} sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Archivos Seleccionados ({files.length})
+        <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 3 }}>
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+            Selected Files ({files.length})
           </Typography>
 
-          <List>
+          <List disablePadding>
             {files.map((file, index) => {
               const isCSV = file.name.toLowerCase().endsWith('.csv');
               const FileIcon = isCSV ? Assignment : PictureAsPdf;
-              const iconColor = isCSV ? 'success.main' : 'error.main';
+              const iconColor = isCSV ? 'success.main' : 'primary.main';
 
               return (
-                <ListItem key={index} divider>
-                  <FileIcon sx={{ mr: 2, color: iconColor }} />
+                <ListItem
+                  key={index}
+                  sx={{
+                    px: 2,
+                    py: 2,
+                    mb: index < files.length - 1 ? 1.5 : 0,
+                    borderRadius: 2,
+                    backgroundColor: 'background.default',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      borderColor: 'primary.light',
+                      transform: 'translateX(4px)',
+                    },
+                  }}
+                >
+                  <FileIcon sx={{ mr: 2, color: iconColor, fontSize: 28 }} />
                   <ListItemText
                     primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {file.name}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                          {file.name}
+                        </Typography>
                         <Chip
                           label={isCSV ? 'CSV' : 'PDF'}
                           size="small"
-                          color={isCSV ? 'success' : 'error'}
-                          variant="outlined"
+                          color={isCSV ? 'success' : 'primary'}
+                          sx={{ fontWeight: 600, fontSize: '0.75rem' }}
                         />
                       </Box>
                     }
-                    secondary={`${(file.size / 1024 / 1024).toFixed(2)} MB`}
+                    secondary={
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                      </Typography>
+                    }
                   />
                   <ListItemSecondaryAction>
                     <IconButton
                       edge="end"
                       onClick={() => removeFile(index)}
-                      color="error"
+                      sx={{
+                        color: 'text.secondary',
+                        '&:hover': {
+                          color: 'error.main',
+                          backgroundColor: 'error.lighter',
+                        },
+                      }}
                     >
                       <Delete />
                     </IconButton>
@@ -358,26 +402,29 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
 
       {/* Parser Selection */}
       {files.length > 0 && (
-        <Paper elevation={1} sx={{ p: 2, mb: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Paper elevation={2} sx={{ p: 3, mb: 4, borderRadius: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Box>
-              <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
-                <Assignment sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Configurar Procesadores
+              <Typography variant="h5" gutterBottom sx={{ mb: 1, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Assignment sx={{ fontSize: 28 }} />
+                Configure Processors
               </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Selecciona el banco y tipo de cuenta apropiado para cada archivo
+              <Typography variant="body1" color="text.secondary">
+                Select the appropriate bank and account type for each file
               </Typography>
             </Box>
-            <Tooltip title="Detectar automáticamente el banco y tipo de cuenta del contenido del PDF">
+            <Tooltip title="Automatically detect bank and account type from PDF content">
               <Button
                 variant="outlined"
-                startIcon={autoDetecting ? <CircularProgress size={16} /> : <AutoAwesome />}
+                startIcon={autoDetecting ? <CircularProgress size={18} /> : <AutoAwesome />}
                 onClick={handleAutoDetect}
                 disabled={files.length === 0 || autoDetecting}
-                size="small"
+                sx={{
+                  px: 3,
+                  py: 1.25,
+                }}
               >
-                {autoDetecting ? 'Detectando...' : 'Auto-Detectar'}
+                {autoDetecting ? 'Detecting...' : 'Auto-Detect'}
               </Button>
             </Tooltip>
           </Box>
@@ -387,10 +434,13 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
             display: 'flex',
             alignItems: 'center',
             gap: 2,
-            mb: 2,
-            p: 2,
-            bgcolor: selectedFiles.size > 0 ? 'primary.light' : 'grey.50',
-            borderRadius: 1
+            mb: 3,
+            p: 2.5,
+            bgcolor: selectedFiles.size > 0 ? 'rgba(0, 122, 255, 0.06)' : 'background.default',
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: selectedFiles.size > 0 ? 'primary.light' : 'divider',
+            transition: 'all 0.2s ease',
           }}>
             <Checkbox
               checked={selectedFiles.size === files.length && files.length > 0}
@@ -444,10 +494,22 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
             )}
           </Box>
 
-          <Grid container spacing={2}>
+          <Grid container spacing={2.5}>
             {files.map((file, index) => (
               <Grid item xs={12} key={index}>
-                <Paper variant="outlined" sx={{ p: 2 }}>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    borderColor: 'divider',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      borderColor: 'primary.light',
+                      boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
+                    },
+                  }}
+                >
                   <Grid container spacing={2} alignItems="center">
                     {/* LEFT: Checkbox */}
                     <Grid item xs="auto">
@@ -459,18 +521,21 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
 
                     {/* CENTER: File info and parser picker */}
                     <Grid item xs>
-                      <Typography variant="subtitle2" gutterBottom>
+                      <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 500, mb: 1.5 }}>
                         {file.name}
                       </Typography>
 
-                      <FormControl fullWidth size="small">
-                        <InputLabel>Banco y Tipo de Cuenta</InputLabel>
+                      <FormControl fullWidth>
+                        <InputLabel>Bank and Account Type</InputLabel>
                         <Select
                           value={parserSelections[file.name]?.label || ''}
-                          label="Banco y Tipo de Cuenta"
+                          label="Bank and Account Type"
                           onChange={(e) => {
                             const parser = parserTypes.find(p => p.label === e.target.value);
                             if (parser) handleParserChange(file.name, parser.id);
+                          }}
+                          sx={{
+                            borderRadius: 2,
                           }}
                         >
                           {parserTypes.map(parser => (
@@ -483,12 +548,12 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
 
                       {/* Auto-detected indicator */}
                       {parserSelections[file.name]?.isAutoSuggested && (
-                        <Typography variant="caption" color="success.main" sx={{ display: 'block', mt: 0.5 }}>
-                          Auto-detectado
+                        <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1, fontWeight: 500 }}>
+                          ✓ Auto-detected
                         </Typography>
                       )}
                       {autoSuggestions[file.name]?.error && (
-                        <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
+                        <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1 }}>
                           {autoSuggestions[file.name].error}
                         </Typography>
                       )}
@@ -499,10 +564,11 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
                       {fileAccountHolders[file.name] && (
                         <Chip
                           label={fileAccountHolders[file.name].name}
-                          size="small"
+                          size="medium"
                           sx={{
                             backgroundColor: fileAccountHolders[file.name].color,
-                            color: 'white'
+                            color: 'white',
+                            fontWeight: 600,
                           }}
                           onDelete={() => handleRemoveAccountHolder(file.name)}
                         />
@@ -518,20 +584,34 @@ const FileUpload = ({ parserTypes, onFilesUploaded }) => {
 
       {/* Upload Button */}
       {files.length > 0 && (
-        <Box sx={{ textAlign: 'center' }}>
-          {uploading && <LinearProgress sx={{ mb: 2 }} />}
+        <Box sx={{ textAlign: 'center', mt: 1 }}>
+          {uploading && (
+            <LinearProgress
+              sx={{
+                mb: 3,
+                borderRadius: 1,
+                height: 6,
+              }}
+            />
+          )}
           <Button
             variant="contained"
             size="large"
             onClick={handleUpload}
             disabled={!canUpload() || uploading}
-            sx={{ minWidth: 200 }}
+            sx={{
+              minWidth: 240,
+              px: 5,
+              py: 1.75,
+              fontSize: '1.0625rem',
+              fontWeight: 600,
+            }}
           >
-            {uploading ? 'Subiendo...' : sessionId ? 'Iniciar Procesamiento' : `Subir ${files.length} Archivo${files.length > 1 ? 's' : ''}`}
+            {uploading ? 'Uploading...' : sessionId ? 'Start Processing' : `Upload ${files.length} File${files.length > 1 ? 's' : ''}`}
           </Button>
           {sessionId && (
-            <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-              Archivos subidos exitosamente. Configura los procesadores y haz clic en "Iniciar Procesamiento" para comenzar.
+            <Typography variant="body1" color="text.secondary" sx={{ mt: 2, maxWidth: 600, mx: 'auto' }}>
+              Files uploaded successfully. Configure the processors and click "Start Processing" to begin.
             </Typography>
           )}
         </Box>

@@ -22,7 +22,8 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Star as StarIcon
+  Star as StarIcon,
+  People as PeopleIcon
 } from '@mui/icons-material';
 import { apiService } from '../services/api';
 
@@ -145,54 +146,101 @@ export default function AccountHolderManagement() {
   }
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4 }}>
-      <Paper sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4">Account Holders</Typography>
+    <Container maxWidth="md">
+      <Paper elevation={2} sx={{ p: 5, borderRadius: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Box>
+            <Typography variant="h3" sx={{ fontWeight: 600, mb: 1 }}>
+              Account Holders
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Manage account holders for organizing your statements
+            </Typography>
+          </Box>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleOpenDialog()}
+            sx={{
+              px: 3,
+              py: 1.5,
+            }}
           >
-            Add Account Holder
+            Add Holder
           </Button>
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
+          <Alert
+            severity="error"
+            sx={{
+              mb: 3,
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'error.light',
+            }}
+            onClose={() => setError('')}
+          >
             {error}
           </Alert>
         )}
 
         {success && (
-          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
+          <Alert
+            severity="success"
+            sx={{
+              mb: 3,
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'success.light',
+            }}
+            onClose={() => setSuccess('')}
+          >
             {success}
           </Alert>
         )}
 
         {holders.length === 0 ? (
-          <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
-            No account holders yet. Click "Add Account Holder" to create one.
-          </Typography>
+          <Box sx={{ py: 6, textAlign: 'center' }}>
+            <PeopleIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              No account holders yet
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+              Click "Add Holder" to create your first account holder
+            </Typography>
+          </Box>
         ) : (
-          <List>
-            {holders.map((holder) => (
+          <List disablePadding>
+            {holders.map((holder, index) => (
               <ListItem
                 key={holder.id}
                 secondaryAction={
                   <Box>
                     <IconButton
-                      edge="end"
                       aria-label="edit"
                       onClick={() => handleOpenDialog(holder)}
-                      sx={{ mr: 1 }}
+                      sx={{
+                        mr: 1,
+                        color: 'text.secondary',
+                        '&:hover': {
+                          color: 'primary.main',
+                          backgroundColor: 'rgba(0, 122, 255, 0.08)',
+                        },
+                      }}
                     >
                       <EditIcon />
                     </IconButton>
                     <IconButton
-                      edge="end"
                       aria-label="delete"
                       onClick={() => handleDelete(holder)}
+                      sx={{
+                        color: 'text.secondary',
+                        '&:hover': {
+                          color: 'error.main',
+                          backgroundColor: 'rgba(255, 59, 48, 0.08)',
+                        },
+                      }}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -201,37 +249,50 @@ export default function AccountHolderManagement() {
                 sx={{
                   border: '1px solid',
                   borderColor: 'divider',
-                  borderRadius: 1,
-                  mb: 1
+                  borderRadius: 2,
+                  mb: index < holders.length - 1 ? 2 : 0,
+                  px: 3,
+                  py: 2.5,
+                  backgroundColor: 'background.paper',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    borderColor: 'primary.light',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.08)',
+                  },
                 }}
               >
-                <Box sx={{ mr: 2 }}>
+                <Box sx={{ mr: 3 }}>
                   <Chip
                     label=""
                     sx={{
                       backgroundColor: holder.color,
-                      width: 40,
-                      height: 40
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
                     }}
                   />
                 </Box>
                 <ListItemText
                   primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="h6">{holder.name}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        {holder.name}
+                      </Typography>
                       {holder.is_default && (
                         <Chip
-                          icon={<StarIcon />}
+                          icon={<StarIcon sx={{ fontSize: 16 }} />}
                           label="Default"
                           size="small"
                           color="primary"
+                          sx={{ fontWeight: 600, fontSize: '0.75rem' }}
                         />
                       )}
                     </Box>
                   }
                   secondary={
-                    <Typography variant="body2" color="text.secondary">
-                      Color: {holder.color}
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      {holder.color}
                     </Typography>
                   }
                 />
@@ -242,9 +303,22 @@ export default function AccountHolderManagement() {
       </Paper>
 
       {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editingHolder ? 'Edit Account Holder' : 'Add Account Holder'}
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            p: 1,
+          },
+        }}
+      >
+        <DialogTitle sx={{ pb: 2 }}>
+          <Typography variant="h5" sx={{ fontWeight: 600 }}>
+            {editingHolder ? 'Edit Account Holder' : 'Add Account Holder'}
+          </Typography>
         </DialogTitle>
         <DialogContent>
           <TextField
@@ -256,49 +330,74 @@ export default function AccountHolderManagement() {
             variant="outlined"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            sx={{ mb: 2, mt: 1 }}
+            sx={{
+              mb: 3,
+              mt: 1,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+              },
+            }}
           />
 
-          <Typography variant="subtitle2" gutterBottom>
+          <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
             Color
           </Typography>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 3 }}>
             {PRESET_COLORS.map((color) => (
               <Box
                 key={color}
                 onClick={() => setFormData({ ...formData, color })}
                 sx={{
-                  width: 40,
-                  height: 40,
+                  width: 44,
+                  height: 44,
                   backgroundColor: color,
-                  border: formData.color === color ? '3px solid #000' : '1px solid #ccc',
+                  border: formData.color === color ? '3px solid' : '2px solid',
+                  borderColor: formData.color === color ? 'text.primary' : 'divider',
                   borderRadius: '50%',
                   cursor: 'pointer',
+                  transition: 'all 0.2s ease',
                   '&:hover': {
-                    opacity: 0.8
-                  }
+                    transform: 'scale(1.1)',
+                    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
+                  },
                 }}
               />
             ))}
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <input
               type="checkbox"
               id="is_default"
               checked={formData.is_default}
               onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })}
+              style={{ width: 18, height: 18, cursor: 'pointer' }}
             />
-            <label htmlFor="is_default">
-              <Typography variant="body2">
+            <label htmlFor="is_default" style={{ cursor: 'pointer' }}>
+              <Typography variant="body1">
                 Set as default account holder
               </Typography>
             </label>
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained">
+        <DialogActions sx={{ px: 3, pb: 3, pt: 2 }}>
+          <Button
+            onClick={handleCloseDialog}
+            sx={{
+              px: 3,
+              py: 1,
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            variant="contained"
+            sx={{
+              px: 3,
+              py: 1,
+            }}
+          >
             {editingHolder ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
