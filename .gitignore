@@ -19,15 +19,30 @@ yarn-error.log*
 package-lock.json
 
 # Temporary files
+temp/
 temp_uploads/
 temp_outputs/
 test_download*.csv
+nul
+_ul
+
+# Generated data files
+*.csv
+!templatesbancos/*.csv
+
+# Database files
+*.sqlite3
+*.db
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+
+# Claude local settings
+.claude/settings.local.json
+.claude/mcp.json
 
 # OS
 .DS_Store
